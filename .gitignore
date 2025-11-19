@@ -1,0 +1,14 @@
+.env
+.idea
+*.iml
+.vscode
+.DS_Store
+
+backend/target/
+backend/.mvn
+backend/mvnw
+backend/mvnw.cmd
+
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
