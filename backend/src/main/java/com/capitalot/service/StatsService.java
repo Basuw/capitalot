@@ -43,7 +43,9 @@ public class StatsService {
     }
     
     public PerformanceStats getAllTimeStats(String email) {
-        return calculateStats(email, LocalDateTime.MIN, LocalDateTime.MAX);
+        LocalDateTime minDate = LocalDateTime.of(1900, 1, 1, 0, 0);
+        LocalDateTime maxDate = LocalDateTime.of(2100, 12, 31, 23, 59);
+        return calculateStats(email, minDate, maxDate);
     }
     
     private PerformanceStats calculateStats(String email, LocalDateTime startDate, LocalDateTime endDate) {

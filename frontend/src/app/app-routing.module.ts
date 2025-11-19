@@ -26,6 +26,11 @@ const routes: Routes = [
     path: 'watchlists', 
     loadChildren: () => import('./components/watchlist/watchlist.module').then(m => m.WatchlistModule),
     canActivate: [authGuard]
+  },
+  { 
+    path: 'stocks', 
+    loadChildren: () => import('./components/stock-search/stock-search.module').then(m => m.StockSearchModule),
+    canActivate: [authGuard]
   }
 ];
 
