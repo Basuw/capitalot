@@ -31,7 +31,9 @@ public class PortfolioController {
         Portfolio portfolio = portfolioService.createPortfolio(
             authentication.getName(),
             request.get("name"),
-            request.get("description")
+            request.get("description"),
+            request.get("icon"),
+            request.get("link")
         );
         return ResponseEntity.ok(portfolio);
     }

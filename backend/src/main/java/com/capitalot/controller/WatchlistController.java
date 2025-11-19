@@ -29,7 +29,9 @@ public class WatchlistController {
         Watchlist watchlist = watchlistService.createWatchlist(
             authentication.getName(),
             request.get("name"),
-            request.get("description")
+            request.get("description"),
+            request.get("icon"),
+            request.get("link")
         );
         return ResponseEntity.ok(watchlist);
     }

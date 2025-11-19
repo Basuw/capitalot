@@ -1,5 +1,6 @@
 package com.capitalot.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -12,6 +13,7 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Watchlist {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -22,8 +24,13 @@ public class Watchlist {
     
     private String description;
     
+    private String link;
+    
+    private String icon;
+    
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnoreProperties({"portfolios", "watchlists", "password", "hibernateLazyInitializer", "handler"})
     private User user;
     
     @ManyToMany
@@ -32,6 +39,7 @@ public class Watchlist {
         joinColumns = @JoinColumn(name = "watchlist_id"),
         inverseJoinColumns = @JoinColumn(name = "stock_id")
     )
+    @JsonIgnoreProperties({"tags", "hibernateLazyInitializer", "handler"})
     private Set<Stock> stocks = new HashSet<>();
     
     @Column(nullable = false)

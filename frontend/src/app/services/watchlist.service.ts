@@ -14,8 +14,8 @@ export class WatchlistService {
     return this.http.get<Watchlist[]>(`${environment.apiUrl}/watchlists`);
   }
 
-  createWatchlist(name: string, description: string): Observable<Watchlist> {
-    return this.http.post<Watchlist>(`${environment.apiUrl}/watchlists`, { name, description });
+  createWatchlist(name: string, description: string, link?: string, icon?: string): Observable<Watchlist> {
+    return this.http.post<Watchlist>(`${environment.apiUrl}/watchlists`, { name, description, link, icon });
   }
 
   addStock(watchlistId: number, stockId: number): Observable<Watchlist> {

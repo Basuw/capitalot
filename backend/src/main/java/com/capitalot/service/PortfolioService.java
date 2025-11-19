@@ -31,13 +31,15 @@ public class PortfolioService {
     }
     
     @Transactional
-    public Portfolio createPortfolio(String email, String name, String description) {
+    public Portfolio createPortfolio(String email, String name, String description, String icon, String link) {
         User user = userRepository.findByEmail(email)
             .orElseThrow(() -> new RuntimeException("User not found"));
         
         Portfolio portfolio = Portfolio.builder()
             .name(name)
             .description(description)
+            .icon(icon)
+            .link(link)
             .user(user)
             .build();
         

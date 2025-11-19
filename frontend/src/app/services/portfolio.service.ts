@@ -14,8 +14,8 @@ export class PortfolioService {
     return this.http.get<Portfolio[]>(`${environment.apiUrl}/portfolios`);
   }
 
-  createPortfolio(name: string, description: string): Observable<Portfolio> {
-    return this.http.post<Portfolio>(`${environment.apiUrl}/portfolios`, { name, description });
+  createPortfolio(name: string, description: string, link?: string, icon?: string): Observable<Portfolio> {
+    return this.http.post<Portfolio>(`${environment.apiUrl}/portfolios`, { name, description, link, icon });
   }
 
   getPortfolioStocks(portfolioId: number): Observable<PortfolioStock[]> {

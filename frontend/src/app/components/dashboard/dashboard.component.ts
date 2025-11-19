@@ -1,7 +1,10 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, AfterViewInit, ViewChild, ElementRef } from '@angular/core';
 import { StatsService } from '../../services/stats.service';
 import { PortfolioService } from '../../services/portfolio.service';
 import { PerformanceStats, Portfolio } from '../../models/models';
+import { Chart, registerables } from 'chart.js';
+
+Chart.register(...registerables);
 
 @Component({
   selector: 'app-dashboard',
@@ -10,6 +13,23 @@ import { PerformanceStats, Portfolio } from '../../models/models';
       <div class="welcome-section">
         <h1>Bienvenue sur Capitalot</h1>
         <p class="subtitle">Gérez vos investissements avec élégance</p>
+      </div>
+
+      <div class="chart-section">
+        <div class="section-header">
+          <h2>Performance de vos portefeuilles</h2>
+          <div class="period-selector">
+            <button 
+              *ngFor="let period of periods" 
+              [class.active]="selectedPeriod === period.value"
+              (click)="changePeriod(period.value)">
+              {{ period.label }}
+            </button>
+          </div>
+        </div>
+        <div class="chart-container">
+          <canvas #performanceChart></canvas>
+        </div>
       </div>
 
       <div class="quick-actions">
@@ -129,7 +149,8 @@ import { PerformanceStats, Portfolio } from '../../models/models';
                [style.animation-delay]="(i * 0.1) + 's'">
             <div class="portfolio-header">
               <div class="portfolio-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <span *ngIf="portfolio.icon" class="emoji-icon">{{ portfolio.icon }}</span>
+                <svg *ngIf="!portfolio.icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
                   <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
                 </svg>
@@ -197,6 +218,51 @@ import { PerformanceStats, Portfolio } from '../../models/models';
       color: #6b7280;
       font-size: 1.3rem;
       font-weight: 300;
+    }
+
+    .chart-section {
+      background: white;
+      border-radius: 20px;
+      padding: 2rem;
+      margin-bottom: 3rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      animation: slideUp 0.6s ease-out;
+    }
+
+    .chart-container {
+      position: relative;
+      height: 400px;
+      margin-top: 2rem;
+    }
+
+    .period-selector {
+      display: flex;
+      gap: 0.5rem;
+      background: #f3f4f6;
+      padding: 0.5rem;
+      border-radius: 12px;
+    }
+
+    .period-selector button {
+      padding: 0.6rem 1.2rem;
+      border: none;
+      background: transparent;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      color: #6b7280;
+      transition: all 0.3s ease;
+    }
+
+    .period-selector button:hover {
+      background: rgba(102, 126, 234, 0.1);
+      color: #667eea;
+    }
+
+    .period-selector button.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
     }
 
     .quick-actions {
@@ -493,6 +559,11 @@ import { PerformanceStats, Portfolio } from '../../models/models';
       height: 24px;
       color: white;
     }
+
+    .emoji-icon {
+      font-size: 2.5rem;
+      line-height: 1;
+    }
     
     .portfolio-card h3 {
       margin: 0;
@@ -569,7 +640,7 @@ import { PerformanceStats, Portfolio } from '../../models/models';
       transition: all 0.3s;
     }
 
-    .btn-add:hover {
+      .btn-add:hover {
       transform: translateY(-2px);
       box-shadow: 0 10px 15px -3px rgba(102, 126, 234, 0.5);
     }
@@ -596,15 +667,39 @@ import { PerformanceStats, Portfolio } from '../../models/models';
         align-items: flex-start;
         gap: 1rem;
       }
+
+      .period-selector {
+        flex-wrap: wrap;
+      }
+
+      .chart-section {
+        padding: 1.5rem;
+      }
+
+      .chart-container {
+        height: 300px;
+      }
     }
   `]
 })
-export class DashboardComponent implements OnInit {
+export class DashboardComponent implements OnInit, AfterViewInit {
+  @ViewChild('performanceChart') performanceChartRef!: ElementRef<HTMLCanvasElement>;
+  
   dailyStats: PerformanceStats = {} as PerformanceStats;
   monthlyStats: PerformanceStats = {} as PerformanceStats;
   yearlyStats: PerformanceStats = {} as PerformanceStats;
   allTimeStats: PerformanceStats = {} as PerformanceStats;
   portfolios: Portfolio[] = [];
+  
+  chart: Chart | null = null;
+  selectedPeriod: string = '1M';
+  periods = [
+    { value: '1D', label: 'Jour' },
+    { value: '1W', label: 'Semaine' },
+    { value: '1M', label: 'Mois' },
+    { value: '1Y', label: 'Année' },
+    { value: '10Y', label: '10 ans' }
+  ];
 
   constructor(
     private statsService: StatsService,
@@ -614,6 +709,149 @@ export class DashboardComponent implements OnInit {
   ngOnInit(): void {
     this.loadStats();
     this.loadPortfolios();
+  }
+
+  ngAfterViewInit(): void {
+    this.initChart();
+  }
+
+  initChart(): void {
+    const ctx = this.performanceChartRef.nativeElement.getContext('2d');
+    if (!ctx) return;
+
+    const data = this.generateChartData(this.selectedPeriod);
+
+    this.chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: data.labels,
+        datasets: [{
+          label: 'Valeur du portefeuille (€)',
+          data: data.values,
+          borderColor: '#667eea',
+          backgroundColor: 'rgba(102, 126, 234, 0.1)',
+          borderWidth: 3,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 0,
+          pointHoverRadius: 6,
+          pointHoverBackgroundColor: '#667eea',
+          pointHoverBorderColor: '#fff',
+          pointHoverBorderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          intersect: false,
+          mode: 'index'
+        },
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            padding: 12,
+            titleFont: { size: 14, weight: 'bold' as const },
+            bodyFont: { size: 13 },
+            displayColors: false,
+            callbacks: {
+              label: (context) => `${context.parsed.y?.toFixed(2) ?? '0.00'} €`
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: false,
+            grid: {
+              color: 'rgba(0, 0, 0, 0.05)'
+            },
+            ticks: {
+              callback: (value) => `${value} €`,
+              font: { size: 12 },
+              color: '#6b7280'
+            }
+          },
+          x: {
+            grid: {
+              display: false
+            },
+            ticks: {
+              font: { size: 12 },
+              color: '#6b7280',
+              maxRotation: 0
+            }
+          }
+        }
+      }
+    });
+  }
+
+  generateChartData(period: string): { labels: string[], values: number[] } {
+    const now = Date.now();
+    let points = 30;
+    let interval = 24 * 60 * 60 * 1000;
+    let baseValue = 10000;
+
+    switch (period) {
+      case '1D':
+        points = 24;
+        interval = 60 * 60 * 1000;
+        break;
+      case '1W':
+        points = 7;
+        interval = 24 * 60 * 60 * 1000;
+        break;
+      case '1M':
+        points = 30;
+        interval = 24 * 60 * 60 * 1000;
+        break;
+      case '1Y':
+        points = 12;
+        interval = 30 * 24 * 60 * 60 * 1000;
+        break;
+      case '10Y':
+        points = 10;
+        interval = 365 * 24 * 60 * 60 * 1000;
+        break;
+    }
+
+    const labels: string[] = [];
+    const values: number[] = [];
+    
+    for (let i = points - 1; i >= 0; i--) {
+      const date = new Date(now - i * interval);
+      
+      if (period === '1D') {
+        labels.push(date.getHours() + 'h');
+      } else if (period === '1W') {
+        labels.push(['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'][date.getDay()]);
+      } else if (period === '1M') {
+        labels.push(date.getDate().toString());
+      } else if (period === '1Y') {
+        labels.push(['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'][date.getMonth()]);
+      } else {
+        labels.push(date.getFullYear().toString());
+      }
+      
+      const variation = (Math.random() - 0.45) * (baseValue * 0.02);
+      baseValue += variation;
+      values.push(Math.round(baseValue * 100) / 100);
+    }
+
+    return { labels, values };
+  }
+
+  changePeriod(period: string): void {
+    this.selectedPeriod = period;
+    if (this.chart) {
+      const data = this.generateChartData(period);
+      this.chart.data.labels = data.labels;
+      this.chart.data.datasets[0].data = data.values;
+      this.chart.update();
+    }
   }
 
   loadStats(): void {

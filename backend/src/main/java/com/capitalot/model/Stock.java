@@ -1,5 +1,6 @@
 package com.capitalot.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -12,6 +13,7 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Stock {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -34,12 +36,22 @@ public class Stock {
     @Column(nullable = false)
     private Boolean isPopular = false;
     
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private StockType stockType = StockType.STOCK;
+    
+    @Enumerated(EnumType.STRING)
+    private Priority priority;
+    
+    private Double marketScore;
+    
     @ManyToMany
     @JoinTable(
         name = "stock_tags",
         joinColumns = @JoinColumn(name = "stock_id"),
         inverseJoinColumns = @JoinColumn(name = "tag_id")
     )
+    @JsonIgnoreProperties({"stocks", "hibernateLazyInitializer", "handler"})
     private Set<Tag> tags = new HashSet<>();
     
     @Column(nullable = false)

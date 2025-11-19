@@ -23,6 +23,25 @@ export interface RegisterRequest {
   lastName: string;
 }
 
+export enum StockType {
+  STOCK = 'STOCK',
+  ETF = 'ETF',
+  CRYPTO = 'CRYPTO'
+}
+
+export enum Priority {
+  LOW = 'LOW',
+  MEDIUM = 'MEDIUM',
+  HIGH = 'HIGH',
+  CRITICAL = 'CRITICAL'
+}
+
+export interface Tag {
+  id: number;
+  name: string;
+  color?: string;
+}
+
 export interface Stock {
   id: number;
   symbol: string;
@@ -32,12 +51,18 @@ export interface Stock {
   sector: string;
   industry: string;
   isPopular: boolean;
+  stockType: StockType;
+  priority?: Priority;
+  marketScore?: number;
+  tags?: Tag[];
 }
 
 export interface Portfolio {
   id: number;
   name: string;
   description: string;
+  link?: string;
+  icon?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -55,6 +80,8 @@ export interface Watchlist {
   id: number;
   name: string;
   description: string;
+  link?: string;
+  icon?: string;
   stocks: Stock[];
   createdAt: string;
   updatedAt: string;
