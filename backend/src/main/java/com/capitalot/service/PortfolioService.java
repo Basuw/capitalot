@@ -30,6 +30,17 @@ public class PortfolioService {
         return portfolioRepository.findByUserId(user.getId());
     }
     
+    public Portfolio getPortfolioById(Long portfolioId, String email) {
+        User user = userRepository.findByEmail(email)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+        Portfolio portfolio = portfolioRepository.findById(portfolioId)
+            .orElseThrow(() -> new RuntimeException("Portfolio not found"));
+        if (!portfolio.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("Unauthorized access to portfolio");
+        }
+        return portfolio;
+    }
+    
     @Transactional
     public Portfolio createPortfolio(String email, String name, String description, String icon, String link) {
         User user = userRepository.findByEmail(email)

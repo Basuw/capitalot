@@ -24,6 +24,11 @@ public class PortfolioController {
         return ResponseEntity.ok(portfolioService.getUserPortfolios(authentication.getName()));
     }
     
+    @GetMapping("/{portfolioId}")
+    public ResponseEntity<Portfolio> getPortfolioById(@PathVariable Long portfolioId, Authentication authentication) {
+        return ResponseEntity.ok(portfolioService.getPortfolioById(portfolioId, authentication.getName()));
+    }
+    
     @PostMapping
     public ResponseEntity<Portfolio> createPortfolio(
             @RequestBody Map<String, String> request,

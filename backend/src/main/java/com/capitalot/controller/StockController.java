@@ -1,5 +1,6 @@
 package com.capitalot.controller;
 
+import com.capitalot.dto.PricePointDto;
 import com.capitalot.dto.StockPriceResponse;
 import com.capitalot.model.Stock;
 import com.capitalot.service.StockPriceService;
@@ -31,5 +32,12 @@ public class StockController {
     @GetMapping("/{symbol}/price")
     public ResponseEntity<StockPriceResponse> getStockPrice(@PathVariable String symbol) {
         return ResponseEntity.ok(stockPriceService.getStockPrice(symbol));
+    }
+    
+    @GetMapping("/{symbol}/history")
+    public ResponseEntity<List<PricePointDto>> getStockHistory(
+            @PathVariable String symbol,
+            @RequestParam(required = false, defaultValue = "1M") String period) {
+        return ResponseEntity.ok(stockPriceService.getStockHistory(symbol, period));
     }
 }
