@@ -39,8 +39,8 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
-      path: '/stock-search',
-      name: 'StockSearch',
+      path: '/actions',
+      name: 'Actions',
       component: () => import('../views/StockSearch.vue'),
       meta: { requiresAuth: true }
     },

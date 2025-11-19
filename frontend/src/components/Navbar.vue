@@ -18,9 +18,9 @@
         <span class="nav-icon">👁️</span>
         <span class="nav-text">Watchlist</span>
       </router-link>
-      <router-link to="/stock-search" class="nav-item">
+      <router-link to="/actions" class="nav-item">
         <span class="nav-icon">🔍</span>
-        <span class="nav-text">Search</span>
+        <span class="nav-text">Actions</span>
       </router-link>
     </nav>
 

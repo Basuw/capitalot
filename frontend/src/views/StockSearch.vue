@@ -3,22 +3,55 @@
     <Navbar />
     
     <div class="stock-search-container">
-      <h1>Stock Search</h1>
+      <h1>Actions</h1>
       
       <div class="search-box">
         <input
           v-model="searchQuery"
           type="text"
-          placeholder="Search for stocks by symbol or name..."
+          placeholder="Rechercher des actions par symbole ou nom..."
           @input="handleSearch"
         />
         <div v-if="searching" class="search-status">Searching...</div>
       </div>
 
-      <div v-if="searchResults.length" class="results-section">
-        <h2>Search Results</h2>
+      <div class="filters-section">
+        <div class="filter-group">
+          <label>Type</label>
+          <select v-model="filters.type">
+            <option value="">Tous</option>
+            <option value="STOCK">Stock</option>
+            <option value="ETF">ETF</option>
+            <option value="CRYPTO">Crypto</option>
+            <option value="COMMODITY">Commodity</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label>Score minimum</label>
+          <select v-model.number="filters.minScore">
+            <option :value="0">Tous</option>
+            <option :value="7">7+</option>
+            <option :value="8">8+</option>
+            <option :value="9">9+</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label>Trier par</label>
+          <select v-model="filters.sortBy">
+            <option value="symbol">Symbole</option>
+            <option value="name">Nom</option>
+            <option value="score">Score</option>
+            <option value="price">Prix</option>
+          </select>
+        </div>
+      </div>
+
+      <div v-if="filteredResults.length" class="results-section">
+        <h2>Résultats ({{ filteredResults.length }})</h2>
         <div class="results-grid">
-          <div v-for="stock in searchResults" :key="stock.symbol" class="stock-card">
+          <div v-for="stock in filteredResults" :key="stock.symbol" class="stock-card">
             <div class="stock-header">
               <div>
                 <div class="stock-symbol">{{ stock.symbol }}</div>
@@ -27,16 +60,21 @@
               <span class="stock-type">{{ stock.type }}</span>
             </div>
             
-            <div v-if="stock.currentPrice" class="stock-price">
-              ${{ formatNumber(stock.currentPrice) }}
+            <div class="stock-details">
+              <div v-if="stock.currentPrice" class="stock-price">
+                ${{ formatNumber(stock.currentPrice) }}
+              </div>
+              <div v-if="stock.marketScore" class="stock-score">
+                Score: {{ stock.marketScore }}/10
+              </div>
             </div>
 
             <div class="stock-actions">
               <button @click="addToPortfolio(stock)" class="btn-action">
-                Add to Portfolio
+                Ajouter au Wallet
               </button>
               <button @click="addToWatchlist(stock)" class="btn-action secondary">
-                Add to Watchlist
+                Ajouter à la Watchlist
               </button>
             </div>
           </div>
@@ -44,11 +82,11 @@
       </div>
 
       <div v-else-if="searchQuery && !searching" class="empty-state">
-        <p>No stocks found matching "{{ searchQuery }}"</p>
+        <p>Aucune action trouvée pour "{{ searchQuery }}"</p>
       </div>
 
       <div v-else class="empty-state">
-        <p>Enter a stock symbol or name to search</p>
+        <p>Entrez un symbole ou nom d'action pour rechercher</p>
       </div>
 
       <Modal :show="showPortfolioModal" title="Add to Portfolio" @close="showPortfolioModal = false">
@@ -79,10 +117,10 @@
           </div>
 
           <div class="form-group">
-            <label for="shares">Number of Shares</label>
+            <label for="quantity">Quantity</label>
             <input
-              id="shares"
-              v-model.number="stockForm.shares"
+              id="quantity"
+              v-model.number="stockForm.quantity"
               type="number"
               step="0.000001"
               min="0"
@@ -92,15 +130,25 @@
           </div>
 
           <div class="form-group">
-            <label for="averageBuyPrice">Average Buy Price</label>
+            <label for="purchasePrice">Purchase Price</label>
             <input
-              id="averageBuyPrice"
-              v-model.number="stockForm.averageBuyPrice"
+              id="purchasePrice"
+              v-model.number="stockForm.purchasePrice"
               type="number"
               step="0.01"
               min="0"
               required
               placeholder="0.00"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="purchaseDate">Purchase Date</label>
+            <input
+              id="purchaseDate"
+              v-model="stockForm.purchaseDate"
+              type="datetime-local"
+              required
             />
           </div>
 
@@ -163,7 +211,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import Navbar from '../components/Navbar.vue'
 import Modal from '../components/Modal.vue'
 import { usePortfolioStore } from '../stores/portfolio'
@@ -179,13 +227,20 @@ const searching = ref(false)
 const selectedStock = ref(null)
 const selectedPortfolioId = ref(null)
 
+const filters = ref({
+  type: '',
+  minScore: 0,
+  sortBy: 'symbol'
+})
+
 const showPortfolioModal = ref(false)
 const showStockModal = ref(false)
 const showWatchlistModal = ref(false)
 
 const stockForm = ref({
-  shares: 0,
-  averageBuyPrice: 0
+  quantity: 0,
+  purchasePrice: 0,
+  purchaseDate: new Date().toISOString().slice(0, 16)
 })
 
 const watchlistForm = ref({
@@ -195,6 +250,33 @@ const watchlistForm = ref({
 })
 
 let searchTimeout = null
+
+const filteredResults = computed(() => {
+  let results = [...searchResults.value]
+  
+  if (filters.value.type) {
+    results = results.filter(stock => stock.type === filters.value.type)
+  }
+  
+  if (filters.value.minScore > 0) {
+    results = results.filter(stock => stock.marketScore >= filters.value.minScore)
+  }
+  
+  results.sort((a, b) => {
+    switch (filters.value.sortBy) {
+      case 'name':
+        return a.name.localeCompare(b.name)
+      case 'score':
+        return (b.marketScore || 0) - (a.marketScore || 0)
+      case 'price':
+        return (b.currentPrice || 0) - (a.currentPrice || 0)
+      default:
+        return a.symbol.localeCompare(b.symbol)
+    }
+  })
+  
+  return results
+})
 
 onMounted(() => {
   portfolioStore.fetchPortfolios()
@@ -239,10 +321,9 @@ async function submitStockToPortfolio() {
   try {
     await portfolioStore.addStock(selectedPortfolioId.value, {
       symbol: selectedStock.value.symbol,
-      name: selectedStock.value.name,
-      type: selectedStock.value.type,
-      shares: stockForm.value.shares,
-      averageBuyPrice: stockForm.value.averageBuyPrice
+      quantity: stockForm.value.quantity,
+      purchasePrice: stockForm.value.purchasePrice,
+      purchaseDate: new Date(stockForm.value.purchaseDate).toISOString()
     })
     closeStockModal()
   } catch (error) {
@@ -255,8 +336,9 @@ function closeStockModal() {
   selectedStock.value = null
   selectedPortfolioId.value = null
   stockForm.value = {
-    shares: 0,
-    averageBuyPrice: 0
+    quantity: 0,
+    purchasePrice: 0,
+    purchaseDate: new Date().toISOString().slice(0, 16)
   }
 }
 
@@ -311,6 +393,41 @@ h1 {
 h2 {
   color: #333;
   margin: 0 0 1.5rem 0;
+}
+
+h2 {
+  color: #333;
+  margin: 0 0 1.5rem 0;
+}
+
+.filters-section {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 150px;
+}
+
+.filter-group label {
+  font-size: 0.875rem;
+  color: #555;
+  font-weight: 500;
+}
+
+.filter-group select {
+  padding: 0.75rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+  background: white;
+  cursor: pointer;
 }
 
 .search-box {
@@ -394,10 +511,25 @@ input[type="text"]:focus {
 }
 
 .stock-price {
-  font-size: 1.75rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: #333;
+}
+
+.stock-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 1rem;
+}
+
+.stock-score {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #667eea;
+  background: #f0f4ff;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
 }
 
 .stock-actions {

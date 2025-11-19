@@ -58,12 +58,27 @@ public class PortfolioService {
     }
     
     @Transactional
-    public PortfolioStock addStockToPortfolio(Long portfolioId, AddStockRequest request) {
+    public PortfolioStock addStockToPortfolio(Long portfolioId, AddStockRequest request, String email) {
+        User user = userRepository.findByEmail(email)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+        
         Portfolio portfolio = portfolioRepository.findById(portfolioId)
             .orElseThrow(() -> new RuntimeException("Portfolio not found"));
         
-        Stock stock = stockRepository.findById(request.getStockId())
-            .orElseThrow(() -> new RuntimeException("Stock not found"));
+        if (!portfolio.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("Unauthorized access to portfolio");
+        }
+        
+        Stock stock;
+        if (request.getStockId() != null) {
+            stock = stockRepository.findById(request.getStockId())
+                .orElseThrow(() -> new RuntimeException("Stock not found"));
+        } else if (request.getSymbol() != null) {
+            stock = stockRepository.findBySymbol(request.getSymbol())
+                .orElseThrow(() -> new RuntimeException("Stock not found"));
+        } else {
+            throw new RuntimeException("Stock ID or symbol is required");
+        }
         
         PortfolioStock portfolioStock = PortfolioStock.builder()
             .portfolio(portfolio)

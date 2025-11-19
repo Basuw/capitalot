@@ -36,7 +36,8 @@
               </td>
               <td>{{ item.stock.name }}</td>
               <td>
-                <span :class="['type-badge', item.stock.type.toLowerCase()]">{{ item.stock.type }}</span>
+                <span v-if="item.stock?.type" :class="['type-badge', item.stock.type.toLowerCase()]">{{ item.stock.type }}</span>
+                <span v-else>-</span>
               </td>
               <td>${{ formatNumber(item.currentPrice) }}</td>
               <td @click="startEdit(item.id, 'targetPrice')" class="editable">
@@ -56,8 +57,8 @@
                 />
               </td>
               <td @click="startEdit(item.id, 'priority')" class="editable">
-                <span v-if="editingCell?.id !== item.id || editingCell?.field !== 'priority'" :class="['priority-badge', item.priority.toLowerCase()]">
-                  {{ item.priority }}
+                <span v-if="editingCell?.id !== item.id || editingCell?.field !== 'priority'" :class="['priority-badge', item.priority?.toLowerCase() || 'medium']">
+                  {{ item.priority || 'MEDIUM' }}
                 </span>
                 <select
                   v-else

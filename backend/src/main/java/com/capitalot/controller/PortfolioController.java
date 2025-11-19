@@ -51,8 +51,9 @@ public class PortfolioController {
     @PostMapping("/{portfolioId}/stocks")
     public ResponseEntity<PortfolioStock> addStock(
             @PathVariable Long portfolioId,
-            @RequestBody AddStockRequest request) {
-        return ResponseEntity.ok(portfolioService.addStockToPortfolio(portfolioId, request));
+            @RequestBody AddStockRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(portfolioService.addStockToPortfolio(portfolioId, request, authentication.getName()));
     }
     
     @DeleteMapping("/{portfolioId}")
