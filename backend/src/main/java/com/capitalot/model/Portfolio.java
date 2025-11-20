@@ -4,8 +4,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "portfolios")
@@ -33,14 +33,18 @@ public class Portfolio {
     @JsonIgnoreProperties({"portfolios", "watchlists", "password", "hibernateLazyInitializer", "handler"})
     private User user;
     
-    @OneToMany(mappedBy = "portfolio", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "portfolio", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @JsonIgnoreProperties({"portfolio"})
-    private Set<PortfolioStock> stocks = new HashSet<>();
+    @Builder.Default
+    private List<PortfolioStock> stocks = new ArrayList<>();
     
     @Column(nullable = false)
     private LocalDateTime createdAt;
     
     private LocalDateTime updatedAt;
+    
+    @Transient
+    private Double totalValue;
     
     @PrePersist
     protected void onCreate() {

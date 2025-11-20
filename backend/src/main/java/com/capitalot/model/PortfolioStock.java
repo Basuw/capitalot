@@ -43,14 +43,44 @@ public class PortfolioStock {
     
     private LocalDateTime updatedAt;
     
+    @Transient
+    private Double currentPrice;
+    
+    @Transient
+    private Double currentValue;
+    
+    @Transient
+    private Double gainLoss;
+    
+    @Transient
+    private Double gainLossPercentage;
+    
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
+        if (purchaseDate == null) {
+            purchaseDate = LocalDateTime.now();
+        }
     }
     
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
+    }
+    
+    @PostLoad
+    protected void calculateValues() {
+        if (stock != null) {
+            this.currentPrice = stock.getCurrentPrice();
+            if (this.currentPrice != null && quantity != null) {
+                this.currentValue = quantity.doubleValue() * this.currentPrice;
+                if (purchasePrice != null) {
+                    double purchaseValue = quantity.doubleValue() * purchasePrice.doubleValue();
+                    this.gainLoss = this.currentValue - purchaseValue;
+                    this.gainLossPercentage = (this.gainLoss / purchaseValue) * 100.0;
+                }
+            }
+        }
     }
 }

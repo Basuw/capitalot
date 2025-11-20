@@ -42,6 +42,10 @@
               <span class="label">Stocks:</span>
               <span class="value">{{ portfolio.stocks?.length || 0 }}</span>
             </div>
+            <div v-if="portfolio.totalValue" class="stat total-value">
+              <span class="label">Total Value:</span>
+              <span class="value">${{ portfolio.totalValue.toFixed(2) }}</span>
+            </div>
           </div>
 
           <button @click="$router.push(`/portfolios/${portfolio.id}`)" class="btn-view">
@@ -317,6 +321,11 @@ h1 {
 .stat .value {
   font-weight: 600;
   color: #333;
+}
+
+.stat.total-value .value {
+  color: #667eea;
+  font-size: 1.1rem;
 }
 
 .btn-view {

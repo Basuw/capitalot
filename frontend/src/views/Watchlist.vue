@@ -432,7 +432,9 @@ function formatNumber(num) {
 
 h1 {
   margin: 0;
-  color: #333;
+  color: #555;
+  font-size: 1.5rem;
+  font-weight: 500;
 }
 
 .btn-primary {
@@ -475,11 +477,15 @@ table {
 }
 
 th {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 1rem;
+  background: #f8f9fa;
+  color: #555;
+  padding: 0.875rem 1rem;
   text-align: left;
   font-weight: 600;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid #e0e0e0;
 }
 
 td {
@@ -577,13 +583,13 @@ tr:hover {
 }
 
 .editable:hover {
-  background: #f0f0f0;
+  background: #f8f9fa;
 }
 
 .inline-edit {
   width: 100%;
   padding: 0.5rem;
-  border: 2px solid #667eea;
+  border: 1px solid #ccc;
   border-radius: 4px;
   font-size: 0.9rem;
   font-family: inherit;
@@ -592,18 +598,23 @@ tr:hover {
 
 .inline-edit:focus {
   outline: none;
-  border-color: #764ba2;
+  border-color: #667eea;
 }
 
 .inline-edit-select {
   width: 100%;
   padding: 0.5rem;
-  border: 2px solid #667eea;
+  border: 1px solid #ccc;
   border-radius: 4px;
   font-size: 0.9rem;
   font-family: inherit;
   cursor: pointer;
   background: white;
+}
+
+.inline-edit-select:focus {
+  outline: none;
+  border-color: #667eea;
 }
 
 .tags-cell {
@@ -623,11 +634,11 @@ tr:hover {
   align-items: center;
   gap: 0.25rem;
   padding: 0.25rem 0.75rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: #e8eaf6;
+  color: #3f51b5;
   border-radius: 12px;
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .tag-badge.editable {
@@ -637,17 +648,18 @@ tr:hover {
 .remove-tag {
   background: none;
   border: none;
-  color: white;
+  color: #3f51b5;
   font-size: 1.2rem;
   cursor: pointer;
   padding: 0;
   margin-left: 0.25rem;
   line-height: 1;
   font-weight: bold;
+  opacity: 0.7;
 }
 
 .remove-tag:hover {
-  color: #ffcccc;
+  opacity: 1;
 }
 
 .empty-tags {
@@ -677,13 +689,13 @@ tr:hover {
   left: 0;
   right: 0;
   background: white;
-  border: 2px solid #667eea;
+  border: 1px solid #ccc;
   border-top: none;
   border-radius: 0 0 4px 4px;
   max-height: 150px;
   overflow-y: auto;
   z-index: 1000;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .tag-suggestion {
@@ -697,7 +709,7 @@ tr:hover {
 }
 
 .btn-icon-modern {
-  background: #f0f0f0;
+  background: white;
   border: 1px solid #e0e0e0;
   width: 32px;
   height: 32px;
@@ -706,20 +718,20 @@ tr:hover {
   justify-content: center;
   border-radius: 6px;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.2s;
   color: #666;
 }
 
 .btn-icon-modern:hover {
-  background: #667eea;
-  border-color: #667eea;
-  color: white;
-  transform: translateY(-2px);
+  background: #f5f5f5;
+  border-color: #ccc;
+  color: #333;
 }
 
 .btn-icon-modern.delete:hover {
-  background: #ef4444;
-  border-color: #ef4444;
+  background: #fee;
+  border-color: #fcc;
+  color: #c33;
 }
 
 .btn-icon {

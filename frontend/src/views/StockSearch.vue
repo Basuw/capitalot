@@ -3,78 +3,54 @@
     <Navbar />
     
     <div class="stock-search-container">
-      <h1>Actions</h1>
-      
-      <div class="search-box">
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Rechercher des actions par symbole ou nom..."
-          @input="handleSearch"
-        />
-        <div v-if="searching" class="search-status">Searching...</div>
-      </div>
-
-      <div class="filters-section">
-        <div class="filter-group">
-          <label>Type</label>
-          <select v-model="filters.type">
-            <option value="">Tous</option>
-            <option value="STOCK">Stock</option>
-            <option value="ETF">ETF</option>
-            <option value="CRYPTO">Crypto</option>
-            <option value="COMMODITY">Commodity</option>
-          </select>
-        </div>
-
-        <div class="filter-group">
-          <label>Score minimum</label>
-          <select v-model.number="filters.minScore">
-            <option :value="0">Tous</option>
-            <option :value="7">7+</option>
-            <option :value="8">8+</option>
-            <option :value="9">9+</option>
-          </select>
-        </div>
-
-        <div class="filter-group">
-          <label>Trier par</label>
-          <select v-model="filters.sortBy">
-            <option value="symbol">Symbole</option>
-            <option value="name">Nom</option>
-            <option value="score">Score</option>
-            <option value="price">Prix</option>
-          </select>
+      <div class="header-section">
+        <h1>Actions</h1>
+        <div class="search-box">
+          <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Rechercher des actions par symbole ou nom..."
+            @input="handleSearch"
+          />
+          <div v-if="searching" class="search-status">
+            <svg class="spinner" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>
+          </div>
         </div>
       </div>
 
       <div v-if="filteredResults.length" class="results-section">
-        <h2>Résultats ({{ filteredResults.length }})</h2>
+        <h2>{{ searchQuery ? `Résultats (${filteredResults.length})` : 'Actions populaires' }}</h2>
         <div class="results-grid">
           <div v-for="stock in filteredResults" :key="stock.symbol" class="stock-card">
+            <div class="stock-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+            </div>
             <div class="stock-header">
               <div>
-                <div class="stock-symbol">{{ stock.symbol }}</div>
+                <router-link :to="`/stocks/${stock.symbol}`" class="stock-symbol">{{ stock.symbol }}</router-link>
                 <div class="stock-name">{{ stock.name }}</div>
               </div>
-              <span class="stock-type">{{ stock.type }}</span>
+              <span v-if="stock.type" class="stock-type">{{ stock.type }}</span>
             </div>
             
-            <div class="stock-details">
-              <div v-if="stock.currentPrice" class="stock-price">
-                ${{ formatNumber(stock.currentPrice) }}
+            <div class="stock-price-section">
+              <div class="stock-price">
+                ${{ stock.currentPrice ? formatNumber(stock.currentPrice) : '--.--' }}
               </div>
               <div v-if="stock.marketScore" class="stock-score">
-                Score: {{ stock.marketScore }}/10
+                ⭐ {{ stock.marketScore }}/10
               </div>
             </div>
 
             <div class="stock-actions">
-              <button @click="addToPortfolio(stock)" class="btn-action">
-                Ajouter au Wallet
+              <button @click="addToPortfolio(stock)" class="btn-action primary">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                Wallet
               </button>
               <button @click="addToWatchlist(stock)" class="btn-action secondary">
-                Ajouter à la Watchlist
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+                Watchlist
               </button>
             </div>
           </div>
@@ -82,11 +58,13 @@
       </div>
 
       <div v-else-if="searchQuery && !searching" class="empty-state">
+        <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>
         <p>Aucune action trouvée pour "{{ searchQuery }}"</p>
       </div>
 
-      <div v-else class="empty-state">
-        <p>Entrez un symbole ou nom d'action pour rechercher</p>
+      <div v-else-if="!searching && !filteredResults.length" class="loading-state">
+        <svg class="spinner" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>
+        <p>Chargement...</p>
       </div>
 
       <Modal :show="showPortfolioModal" title="Add to Portfolio" @close="showPortfolioModal = false">
@@ -227,12 +205,6 @@ const searching = ref(false)
 const selectedStock = ref(null)
 const selectedPortfolioId = ref(null)
 
-const filters = ref({
-  type: '',
-  minScore: 0,
-  sortBy: 'symbol'
-})
-
 const showPortfolioModal = ref(false)
 const showStockModal = ref(false)
 const showWatchlistModal = ref(false)
@@ -252,35 +224,26 @@ const watchlistForm = ref({
 let searchTimeout = null
 
 const filteredResults = computed(() => {
-  let results = [...searchResults.value]
-  
-  if (filters.value.type) {
-    results = results.filter(stock => stock.type === filters.value.type)
-  }
-  
-  if (filters.value.minScore > 0) {
-    results = results.filter(stock => stock.marketScore >= filters.value.minScore)
-  }
-  
-  results.sort((a, b) => {
-    switch (filters.value.sortBy) {
-      case 'name':
-        return a.name.localeCompare(b.name)
-      case 'score':
-        return (b.marketScore || 0) - (a.marketScore || 0)
-      case 'price':
-        return (b.currentPrice || 0) - (a.currentPrice || 0)
-      default:
-        return a.symbol.localeCompare(b.symbol)
-    }
-  })
-  
-  return results
+  return searchResults.value
 })
 
-onMounted(() => {
+onMounted(async () => {
   portfolioStore.fetchPortfolios()
+  await loadPopularStocks()
 })
+
+async function loadPopularStocks() {
+  searching.value = true
+  try {
+    const response = await api.get('/stocks/popular')
+    searchResults.value = response.data
+  } catch (error) {
+    console.error('Failed to load popular stocks:', error)
+    searchResults.value = []
+  } finally {
+    searching.value = false
+  }
+}
 
 function handleSearch() {
   if (searchTimeout) {
@@ -288,7 +251,7 @@ function handleSearch() {
   }
 
   if (!searchQuery.value.trim()) {
-    searchResults.value = []
+    loadPopularStocks()
     return
   }
 
@@ -380,83 +343,71 @@ function formatNumber(num) {
 
 <style scoped>
 .stock-search-container {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 2rem;
+}
+
+.header-section {
+  margin-bottom: 3rem;
 }
 
 h1 {
   margin: 0 0 2rem 0;
   color: #333;
+  font-size: 2.5rem;
 }
 
 h2 {
   color: #333;
   margin: 0 0 1.5rem 0;
-}
-
-h2 {
-  color: #333;
-  margin: 0 0 1.5rem 0;
-}
-
-.filters-section {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 2rem;
-  flex-wrap: wrap;
-}
-
-.filter-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  flex: 1;
-  min-width: 150px;
-}
-
-.filter-group label {
-  font-size: 0.875rem;
-  color: #555;
-  font-weight: 500;
-}
-
-.filter-group select {
-  padding: 0.75rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  font-size: 1rem;
-  background: white;
-  cursor: pointer;
+  font-size: 1.5rem;
 }
 
 .search-box {
-  margin-bottom: 2rem;
   position: relative;
+}
+
+.search-icon {
+  position: absolute;
+  left: 1.25rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #999;
 }
 
 input[type="text"] {
   width: 100%;
-  padding: 1rem;
+  padding: 1.25rem 1.25rem 1.25rem 3.5rem;
   border: 2px solid #e0e0e0;
-  border-radius: 12px;
+  border-radius: 16px;
   font-size: 1.1rem;
-  transition: border-color 0.3s;
+  transition: all 0.3s;
   box-sizing: border-box;
+  background: white;
 }
 
 input[type="text"]:focus {
   outline: none;
   border-color: #667eea;
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
 }
 
 .search-status {
   position: absolute;
-  right: 1rem;
+  right: 1.25rem;
   top: 50%;
   transform: translateY(-50%);
-  color: #666;
-  font-size: 0.9rem;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+  color: #667eea;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .results-section {
@@ -465,111 +416,169 @@ input[type="text"]:focus {
 
 .results-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 2rem;
 }
 
 .stock-card {
   background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s, box-shadow 0.3s;
+  border-radius: 20px;
+  padding: 2rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 2px solid transparent;
 }
 
 .stock-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
+  transform: translateY(-8px);
+  box-shadow: 0 12px 32px rgba(102, 126, 234, 0.2);
+  border-color: #667eea;
+}
+
+.stock-icon {
+  width: 64px;
+  height: 64px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  color: white;
 }
 
 .stock-header {
+  margin-bottom: 1.5rem;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 1rem;
 }
 
 .stock-symbol {
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   font-weight: 700;
+  color: #333;
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+.stock-symbol:hover {
   color: #667eea;
 }
 
 .stock-name {
   color: #666;
-  font-size: 0.9rem;
-  margin-top: 0.25rem;
+  font-size: 0.95rem;
+  margin-top: 0.5rem;
+  line-height: 1.4;
 }
 
 .stock-type {
   display: inline-block;
-  padding: 0.25rem 0.75rem;
-  background: #e0e0e0;
-  border-radius: 12px;
-  font-size: 0.85rem;
+  padding: 0.4rem 0.9rem;
+  background: #f0f4ff;
+  color: #667eea;
+  border-radius: 8px;
+  font-size: 0.8rem;
   font-weight: 600;
+  text-transform: uppercase;
 }
 
-.stock-price {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #333;
-}
-
-.stock-details {
+.stock-price-section {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 12px;
+}
+
+.stock-price {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #333;
 }
 
 .stock-score {
   font-size: 1rem;
   font-weight: 600;
   color: #667eea;
-  background: #f0f4ff;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
 }
 
 .stock-actions {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
 .btn-action {
-  width: 100%;
-  padding: 0.75rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.875rem;
   border: none;
-  border-radius: 8px;
+  border-radius: 12px;
   font-weight: 600;
+  font-size: 0.95rem;
   cursor: pointer;
-  transition: opacity 0.3s;
+  transition: all 0.3s;
 }
 
-.btn-action:hover {
-  opacity: 0.9;
+.btn-action.primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.btn-action.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
 }
 
 .btn-action.secondary {
-  background: #e0e0e0;
-  color: #333;
+  background: white;
+  color: #667eea;
+  border: 2px solid #667eea;
 }
 
 .btn-action.secondary:hover {
-  background: #d0d0d0;
+  background: #667eea;
+  color: white;
+  transform: translateY(-2px);
 }
 
 .empty-state {
   text-align: center;
-  padding: 3rem;
+  padding: 4rem 2rem;
   background: white;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 20px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   color: #666;
+}
+
+.empty-state svg {
+  color: #ccc;
+  margin-bottom: 1rem;
+}
+
+.empty-state p {
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.loading-state {
+  text-align: center;
+  padding: 4rem 2rem;
+}
+
+.loading-state svg {
+  margin-bottom: 1rem;
+}
+
+.loading-state p {
+  color: #666;
+  font-size: 1.1rem;
 }
 
 .portfolio-list {

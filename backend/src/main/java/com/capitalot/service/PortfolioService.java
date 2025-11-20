@@ -13,7 +13,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Random;
 
 @Service
 @RequiredArgsConstructor
@@ -23,13 +25,27 @@ public class PortfolioService {
     private final PortfolioStockRepository portfolioStockRepository;
     private final StockRepository stockRepository;
     private final UserRepository userRepository;
+    private final Random random = new Random();
     
     public List<Portfolio> getUserPortfolios(String email) {
         User user = userRepository.findByEmail(email)
             .orElseThrow(() -> new RuntimeException("User not found"));
-        return portfolioRepository.findByUserId(user.getId());
+        List<Portfolio> portfolios = portfolioRepository.findByUserId(user.getId());
+        
+        for (Portfolio portfolio : portfolios) {
+            double totalValue = 0.0;
+            for (PortfolioStock ps : portfolio.getStocks()) {
+                if (ps.getCurrentValue() != null) {
+                    totalValue += ps.getCurrentValue();
+                }
+            }
+            portfolio.setTotalValue(totalValue);
+        }
+        
+        return portfolios;
     }
     
+    @Transactional(readOnly = true)
     public Portfolio getPortfolioById(Long portfolioId, String email) {
         User user = userRepository.findByEmail(email)
             .orElseThrow(() -> new RuntimeException("User not found"));
@@ -38,6 +54,7 @@ public class PortfolioService {
         if (!portfolio.getUser().getId().equals(user.getId())) {
             throw new RuntimeException("Unauthorized access to portfolio");
         }
+        portfolio.getStocks().size();
         return portfolio;
     }
     

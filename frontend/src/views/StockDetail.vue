@@ -2,19 +2,24 @@
   <div class="stock-detail">
     <div class="header-section">
       <button @click="goBack" class="back-btn">← Back</button>
-      <h1>{{ symbol }}</h1>
+      <h1>{{ stockInfo?.name || symbol }}</h1>
+      <p v-if="stockInfo" class="stock-symbol-subtitle">{{ symbol }} • {{ stockInfo.exchange }}</p>
       <div v-if="stockInfo" class="stock-info">
         <div class="info-item">
           <span class="label">Current Price</span>
-          <span class="value price">${{ currentPrice?.toFixed(2) }}</span>
+          <span class="value price">${{ stockInfo.currentPrice?.toFixed(2) || '0.00' }}</span>
         </div>
         <div class="info-item">
-          <span class="label">Type</span>
-          <span class="value">{{ stockInfo.type }}</span>
+          <span class="label">Sector</span>
+          <span class="value">{{ stockInfo.sector || 'N/A' }}</span>
+        </div>
+        <div class="info-item">
+          <span class="label">Industry</span>
+          <span class="value">{{ stockInfo.industry || 'N/A' }}</span>
         </div>
         <div class="info-item">
           <span class="label">Market Score</span>
-          <span class="value">{{ stockInfo.marketScore }}</span>
+          <span class="value">{{ stockInfo.marketScore?.toFixed(1) || 'N/A' }}</span>
         </div>
       </div>
     </div>
@@ -66,8 +71,8 @@ async function loadStockData() {
     error.value = null
 
     const [infoResponse, historyResponse] = await Promise.all([
-      api.get(`/api/stocks/${symbol}`),
-      api.get(`/api/stocks/${symbol}/price-history`)
+      api.get(`/stocks/${symbol}`),
+      api.get(`/stocks/${symbol}/price-history`)
     ])
 
     stockInfo.value = infoResponse.data
@@ -119,8 +124,15 @@ onMounted(() => {
 
 .stock-detail h1 {
   font-size: 2rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.5rem;
   color: #1e1e2e;
+}
+
+.stock-symbol-subtitle {
+  color: #6b7280;
+  font-size: 1rem;
+  margin-bottom: 1.5rem;
+  font-weight: 500;
 }
 
 .stock-info {

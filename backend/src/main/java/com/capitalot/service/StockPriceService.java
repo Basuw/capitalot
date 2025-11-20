@@ -71,6 +71,13 @@ public class StockPriceService {
             .toList();
     }
     
+    public List<PricePointDto> getPriceHistory(String symbol) {
+        Stock stock = stockRepository.findBySymbol(symbol)
+            .orElseThrow(() -> new RuntimeException("Stock not found"));
+        
+        return generateMockHistory(symbol, "1Y");
+    }
+    
     private LocalDateTime getStartDateFromPeriod(String period) {
         return switch (period) {
             case "1D" -> LocalDateTime.now().minusDays(1);

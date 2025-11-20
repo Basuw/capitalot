@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
 import java.util.HashSet;
+import java.util.Random;
 import java.util.Set;
 
 @Entity
@@ -45,6 +46,9 @@ public class Stock {
     
     private Double marketScore;
     
+    @Transient
+    private Double currentPrice;
+    
     @ManyToMany
     @JoinTable(
         name = "stock_tags",
@@ -68,5 +72,11 @@ public class Stock {
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
+    }
+    
+    @PostLoad
+    protected void calculateCurrentPrice() {
+        Random random = new Random(symbol.hashCode());
+        currentPrice = 50.0 + random.nextDouble() * 450.0;
     }
 }

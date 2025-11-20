@@ -70,7 +70,12 @@ async function handleLogin() {
       password: password.value
     })
 
-    authStore.setAuth(response.data.token, response.data.user)
+    const user = {
+      email: response.data.email,
+      firstName: response.data.firstName,
+      lastName: response.data.lastName
+    }
+    authStore.setAuth(response.data.token, user)
     router.push('/')
   } catch (e) {
     error.value = e.response?.data?.message || 'Login failed. Please try again.'

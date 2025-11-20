@@ -40,4 +40,14 @@ public class StockController {
             @RequestParam(required = false, defaultValue = "1M") String period) {
         return ResponseEntity.ok(stockPriceService.getStockHistory(symbol, period));
     }
+    
+    @GetMapping("/{symbol}")
+    public ResponseEntity<Stock> getStock(@PathVariable String symbol) {
+        return ResponseEntity.ok(stockSearchService.getStockBySymbol(symbol));
+    }
+    
+    @GetMapping("/{symbol}/price-history")
+    public ResponseEntity<List<PricePointDto>> getPriceHistory(@PathVariable String symbol) {
+        return ResponseEntity.ok(stockPriceService.getPriceHistory(symbol));
+    }
 }

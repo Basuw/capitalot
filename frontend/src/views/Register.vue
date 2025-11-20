@@ -99,13 +99,23 @@ async function handleRegister() {
   }
 
   try {
+    const nameParts = name.value.trim().split(' ')
+    const firstName = nameParts[0] || ''
+    const lastName = nameParts.slice(1).join(' ') || nameParts[0] || ''
+
     const response = await api.post('/auth/register', {
-      name: name.value,
       email: email.value,
-      password: password.value
+      password: password.value,
+      firstName: firstName,
+      lastName: lastName
     })
 
-    authStore.setAuth(response.data.token, response.data.user)
+    const user = {
+      email: response.data.email,
+      firstName: response.data.firstName,
+      lastName: response.data.lastName
+    }
+    authStore.setAuth(response.data.token, user)
     router.push('/')
   } catch (e) {
     error.value = e.response?.data?.message || 'Registration failed. Please try again.'

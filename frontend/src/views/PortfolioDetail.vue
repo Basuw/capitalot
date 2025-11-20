@@ -49,13 +49,13 @@
                 <td>
                   <span class="badge">{{ stock.stock.type }}</span>
                 </td>
-                <td>{{ stock.shares }}</td>
-                <td>${{ formatNumber(stock.averageBuyPrice) }}</td>
+                <td>{{ formatNumber(stock.quantity) }}</td>
+                <td>${{ formatNumber(stock.purchasePrice) }}</td>
                 <td>${{ formatNumber(stock.currentPrice) }}</td>
-                <td>${{ formatNumber(stock.totalValue) }}</td>
-                <td :class="stock.gainLoss >= 0 ? 'positive' : 'negative'">
+                <td>${{ formatNumber(stock.currentValue) }}</td>
+                <td :class="(stock.gainLoss || 0) >= 0 ? 'positive' : 'negative'">
                   ${{ formatNumber(stock.gainLoss) }}
-                  ({{ formatPercent(stock.gainLossPercent) }}%)
+                  ({{ formatPercent(stock.gainLossPercentage) }}%)
                 </td>
                 <td>
                   <button @click="removeStockConfirm(stock.id)" class="btn-icon-modern delete" title="Remove">
@@ -75,42 +75,42 @@
         <Modal :show="showAddStockModal" title="Add Stock to Portfolio" @close="closeAddStockModal">
           <form @submit.prevent="addStock">
             <div class="form-group">
-              <label for="symbol">Stock Symbol</label>
+              <label for="searchStock">Search Stock</label>
               <input
-                id="symbol"
-                v-model="stockForm.symbol"
+                id="searchStock"
+                v-model="searchQuery"
                 type="text"
-                required
-                placeholder="e.g., AAPL"
+                placeholder="Search by symbol or name..."
+                @input="searchStocks"
               />
             </div>
 
-            <div class="form-group">
-              <label for="name">Stock Name</label>
-              <input
-                id="name"
-                v-model="stockForm.name"
-                type="text"
-                required
-                placeholder="e.g., Apple Inc."
-              />
+            <div v-if="searchResults.length > 0" class="search-results">
+              <div 
+                v-for="stock in searchResults" 
+                :key="stock.symbol"
+                class="search-result-item"
+                :class="{ selected: selectedStock?.symbol === stock.symbol }"
+                @click="selectStock(stock)"
+              >
+                <div class="stock-info">
+                  <div class="stock-symbol">{{ stock.symbol }}</div>
+                  <div class="stock-name">{{ stock.name }}</div>
+                </div>
+                <div class="stock-price">${{ formatNumber(stock.currentPrice || 0) }}</div>
+              </div>
+            </div>
+
+            <div v-if="selectedStock" class="selected-stock-info">
+              <h4>Selected: {{ selectedStock.symbol }} - {{ selectedStock.name }}</h4>
+              <p>Current Price: ${{ formatNumber(selectedStock.currentPrice || 0) }}</p>
             </div>
 
             <div class="form-group">
-              <label for="type">Type</label>
-              <select id="type" v-model="stockForm.type" required>
-                <option value="STOCK">Stock</option>
-                <option value="ETF">ETF</option>
-                <option value="CRYPTO">Crypto</option>
-                <option value="COMMODITY">Commodity</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label for="shares">Number of Shares</label>
+              <label for="quantity">Quantity</label>
               <input
-                id="shares"
-                v-model.number="stockForm.shares"
+                id="quantity"
+                v-model.number="stockForm.quantity"
                 type="number"
                 step="0.000001"
                 min="0"
@@ -120,10 +120,10 @@
             </div>
 
             <div class="form-group">
-              <label for="averageBuyPrice">Average Buy Price</label>
+              <label for="purchasePrice">Purchase Price</label>
               <input
-                id="averageBuyPrice"
-                v-model.number="stockForm.averageBuyPrice"
+                id="purchasePrice"
+                v-model.number="stockForm.purchasePrice"
                 type="number"
                 step="0.01"
                 min="0"
@@ -132,9 +132,19 @@
               />
             </div>
 
+            <div class="form-group">
+              <label for="purchaseDate">Purchase Date</label>
+              <input
+                id="purchaseDate"
+                v-model="stockForm.purchaseDate"
+                type="datetime-local"
+                required
+              />
+            </div>
+
             <div class="form-actions">
               <button type="button" @click="closeAddStockModal" class="btn-secondary">Cancel</button>
-              <button type="submit" class="btn-primary" :disabled="portfolioStore.loading">
+              <button type="submit" class="btn-primary" :disabled="portfolioStore.loading || !selectedStock">
                 Add Stock
               </button>
             </div>
@@ -151,17 +161,20 @@ import { useRoute } from 'vue-router'
 import Navbar from '../components/Navbar.vue'
 import Modal from '../components/Modal.vue'
 import { usePortfolioStore } from '../stores/portfolio'
+import api from '../services/api'
 
 const route = useRoute()
 const portfolioStore = usePortfolioStore()
 
 const showAddStockModal = ref(false)
+const searchQuery = ref('')
+const searchResults = ref([])
+const selectedStock = ref(null)
 const stockForm = ref({
   symbol: '',
-  name: '',
-  type: 'STOCK',
-  shares: 0,
-  averageBuyPrice: 0
+  quantity: 0,
+  purchasePrice: 0,
+  purchaseDate: new Date().toISOString().slice(0, 16)
 })
 
 const stocks = computed(() => portfolioStore.currentPortfolio?.stocks || [])
@@ -170,9 +183,45 @@ onMounted(() => {
   portfolioStore.fetchPortfolioById(route.params.id)
 })
 
+let searchTimeout = null
+async function searchStocks() {
+  if (searchTimeout) clearTimeout(searchTimeout)
+  
+  if (!searchQuery.value.trim()) {
+    searchResults.value = []
+    return
+  }
+  
+  searchTimeout = setTimeout(async () => {
+    try {
+      const response = await api.get('/stocks/search', {
+        params: { query: searchQuery.value }
+      })
+      searchResults.value = response.data
+    } catch (error) {
+      console.error('Failed to search stocks:', error)
+    }
+  }, 300)
+}
+
+function selectStock(stock) {
+  selectedStock.value = stock
+  stockForm.value.symbol = stock.symbol
+  stockForm.value.purchasePrice = stock.currentPrice || 0
+  searchQuery.value = `${stock.symbol} - ${stock.name}`
+  searchResults.value = []
+}
+
 async function addStock() {
+  if (!selectedStock.value) return
+  
   try {
-    await portfolioStore.addStock(route.params.id, stockForm.value)
+    await portfolioStore.addStock(route.params.id, {
+      symbol: selectedStock.value.symbol,
+      quantity: stockForm.value.quantity,
+      purchasePrice: stockForm.value.purchasePrice,
+      purchaseDate: new Date(stockForm.value.purchaseDate).toISOString()
+    })
     closeAddStockModal()
   } catch (error) {
     console.error('Failed to add stock:', error)
@@ -191,12 +240,14 @@ async function removeStockConfirm(stockId) {
 
 function closeAddStockModal() {
   showAddStockModal.value = false
+  searchQuery.value = ''
+  searchResults.value = []
+  selectedStock.value = null
   stockForm.value = {
     symbol: '',
-    name: '',
-    type: 'STOCK',
-    shares: 0,
-    averageBuyPrice: 0
+    quantity: 0,
+    purchasePrice: 0,
+    purchaseDate: new Date().toISOString().slice(0, 16)
   }
 }
 
@@ -205,7 +256,8 @@ function formatNumber(num) {
 }
 
 function formatPercent(num) {
-  return num?.toFixed(2) || '0.00'
+  if (num === null || num === undefined || isNaN(num)) return '0.00'
+  return Number(num).toFixed(2)
 }
 </script>
 
@@ -454,5 +506,79 @@ select:focus {
 
 .btn-secondary:hover {
   background: #d0d0d0;
+}
+
+.search-results {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.search-result-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid #e0e0e0;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.search-result-item:last-child {
+  border-bottom: none;
+}
+
+.search-result-item:hover {
+  background: #f9f9f9;
+}
+
+.search-result-item.selected {
+  background: #e8eaf6;
+  border-left: 3px solid #667eea;
+}
+
+.stock-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.stock-symbol {
+  font-weight: 700;
+  color: #667eea;
+  font-size: 1rem;
+}
+
+.stock-name {
+  color: #666;
+  font-size: 0.85rem;
+}
+
+.stock-price {
+  font-weight: 600;
+  color: #333;
+  font-size: 1rem;
+}
+
+.selected-stock-info {
+  background: #e8f5e9;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  border-left: 3px solid #10b981;
+}
+
+.selected-stock-info h4 {
+  margin: 0 0 0.5rem 0;
+  color: #333;
+  font-size: 1rem;
+}
+
+.selected-stock-info p {
+  margin: 0;
+  color: #666;
+  font-size: 0.9rem;
 }
 </style>

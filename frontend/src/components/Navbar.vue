@@ -27,7 +27,10 @@
     <div class="sidebar-footer">
       <div class="user-info">
         <div class="user-avatar">{{ userInitial }}</div>
-        <span class="user-email">{{ userEmail }}</span>
+        <div class="user-details">
+          <span class="user-name">{{ userName }}</span>
+          <span class="user-email">{{ userEmail }}</span>
+        </div>
       </div>
       <button @click="logout" class="logout-btn">
         <span class="nav-icon">🚪</span>
@@ -45,8 +48,24 @@ import { useRouter } from 'vue-router'
 const authStore = useAuthStore()
 const router = useRouter()
 
-const userEmail = computed(() => authStore.user?.email || 'Guest')
-const userInitial = computed(() => (authStore.user?.email?.[0] || 'G').toUpperCase())
+const userName = computed(() => {
+  if (authStore.user?.firstName && authStore.user?.lastName) {
+    return `${authStore.user.firstName} ${authStore.user.lastName}`
+  } else if (authStore.user?.firstName) {
+    return authStore.user.firstName
+  } else if (authStore.user?.email) {
+    return authStore.user.email.split('@')[0]
+  }
+  return 'Guest'
+})
+
+const userEmail = computed(() => authStore.user?.email || 'guest@capitalot.com')
+const userInitial = computed(() => {
+  if (authStore.user?.firstName) {
+    return authStore.user.firstName[0].toUpperCase()
+  }
+  return (authStore.user?.email?.[0] || 'G').toUpperCase()
+})
 
 function logout() {
   authStore.clearAuth()
@@ -139,13 +158,15 @@ function logout() {
   align-items: center;
   gap: 0.75rem;
   margin-bottom: 1rem;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 0.85rem;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
 }
 
 .user-avatar {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
   border-radius: 50%;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   display: flex;
@@ -153,14 +174,31 @@ function logout() {
   justify-content: center;
   color: white;
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: 1rem;
 }
 
-.user-email {
+.user-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  overflow: hidden;
+}
+
+.user-name {
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 150px;
+}
+
+.user-email {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .logout-btn {
