@@ -19,41 +19,117 @@
         </div>
       </div>
 
-      <div v-if="filteredResults.length" class="results-section">
-        <h2>{{ searchQuery ? `Résultats (${filteredResults.length})` : 'Actions populaires' }}</h2>
-        <div class="results-grid">
-          <div v-for="stock in filteredResults" :key="stock.symbol" class="stock-card">
-            <div class="stock-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-            </div>
-            <div class="stock-header">
-              <div>
-                <router-link :to="`/stocks/${stock.symbol}`" class="stock-symbol">{{ stock.symbol }}</router-link>
-                <div class="stock-name">{{ stock.name }}</div>
-              </div>
-              <span v-if="stock.type" class="stock-type">{{ stock.type }}</span>
-            </div>
-            
-            <div class="stock-price-section">
-              <div class="stock-price">
-                ${{ stock.currentPrice ? formatNumber(stock.currentPrice) : '--.--' }}
-              </div>
-              <div v-if="stock.marketScore" class="stock-score">
-                ⭐ {{ stock.marketScore }}/10
-              </div>
-            </div>
+      <div class="filters-section">
+        <div class="filter-group">
+          <label>Secteur</label>
+          <select v-model="selectedSector">
+            <option value="">Tous les secteurs</option>
+            <option v-for="sector in uniqueSectors" :key="sector" :value="sector">{{ sector }}</option>
+          </select>
+        </div>
+        
+        <div class="filter-group">
+          <label>Industrie</label>
+          <select v-model="selectedIndustry">
+            <option value="">Toutes les industries</option>
+            <option v-for="industry in uniqueIndustries" :key="industry" :value="industry">{{ industry }}</option>
+          </select>
+        </div>
+        
+        <div class="filter-group">
+          <label>Risque</label>
+          <select v-model="selectedRisk">
+            <option value="">Tous</option>
+            <option value="low">Faible (0-3)</option>
+            <option value="medium">Moyen (4-6)</option>
+            <option value="high">Élevé (7-10)</option>
+          </select>
+        </div>
+      </div>
 
-            <div class="stock-actions">
-              <button @click="addToPortfolio(stock)" class="btn-action primary">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                Wallet
-              </button>
-              <button @click="addToWatchlist(stock)" class="btn-action secondary">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
-                Watchlist
-              </button>
-            </div>
-          </div>
+      <div v-if="paginatedResults.length" class="results-section">
+        <h2>{{ searchQuery ? `Résultats (${filteredResults.length})` : `Actions (${filteredResults.length})` }}</h2>
+        <div class="table-container">
+          <table class="stocks-table">
+            <thead>
+              <tr>
+                <th @click="sortBy('symbol')" class="sortable">
+                  Symbole
+                  <span v-if="sortField === 'symbol'">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                </th>
+                <th @click="sortBy('name')" class="sortable">
+                  Nom
+                  <span v-if="sortField === 'name'">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                </th>
+                <th @click="sortBy('currentPrice')" class="sortable right-align">
+                  Prix
+                  <span v-if="sortField === 'currentPrice'">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                </th>
+                <th @click="sortBy('dailyChangePercentage')" class="sortable right-align">
+                  Changement
+                  <span v-if="sortField === 'dailyChangePercentage'">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                </th>
+                <th @click="sortBy('sector')" class="sortable">
+                  Secteur
+                  <span v-if="sortField === 'sector'">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                </th>
+                <th @click="sortBy('risk')" class="sortable right-align">
+                  Risque
+                  <span v-if="sortField === 'risk'">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                </th>
+                <th @click="sortBy('marketScore')" class="sortable right-align">
+                  Score
+                  <span v-if="sortField === 'marketScore'">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr 
+                v-for="stock in paginatedResults" 
+                :key="stock.symbol" 
+                class="stock-row"
+                @click="navigateToStock(stock.symbol)"
+              >
+                <td class="symbol-cell">
+                  <div class="stock-icon-small">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                  </div>
+                  <strong>{{ stock.symbol }}</strong>
+                </td>
+                <td>{{ stock.name }}</td>
+                <td class="right-align">${{ formatNumber(stock.currentPrice) }}</td>
+                <td class="right-align">
+                  <span :class="getDailyChangeClass(stock.dailyChangePercentage)">
+                    {{ formatChange(stock.dailyChange) }}
+                    ({{ formatPercent(stock.dailyChangePercentage) }}%)
+                  </span>
+                </td>
+                <td>{{ stock.sector || '-' }}</td>
+                <td class="right-align">
+                  <span :class="getRiskClass(stock.risk)">{{ stock.risk?.toFixed(1) || '-' }}</span>
+                </td>
+                <td class="right-align">{{ stock.marketScore || '-' }}/10</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="pagination">
+          <button 
+            @click="currentPage--" 
+            :disabled="currentPage === 1"
+            class="pagination-btn"
+          >
+            Précédent
+          </button>
+          <span class="page-info">Page {{ currentPage }} sur {{ totalPages }}</span>
+          <button 
+            @click="currentPage++" 
+            :disabled="currentPage === totalPages"
+            class="pagination-btn"
+          >
+            Suivant
+          </button>
         </div>
       </div>
 
@@ -67,178 +143,106 @@
         <p>Chargement...</p>
       </div>
 
-      <Modal :show="showPortfolioModal" title="Add to Portfolio" @close="showPortfolioModal = false">
-        <div v-if="portfolioStore.portfolios.length">
-          <p>Select a portfolio to add {{ selectedStock?.symbol }}:</p>
-          <div class="portfolio-list">
-            <div
-              v-for="portfolio in portfolioStore.portfolios"
-              :key="portfolio.id"
-              class="portfolio-option"
-              @click="addStockToPortfolio(portfolio.id)"
-            >
-              <span class="portfolio-icon">{{ portfolio.icon || '💼' }}</span>
-              <span class="portfolio-name">{{ portfolio.name }}</span>
-            </div>
-          </div>
-        </div>
-        <div v-else class="empty-state">
-          <p>You don't have any portfolios yet.</p>
-          <router-link to="/portfolios" class="btn-primary">Create a Portfolio</router-link>
-        </div>
-      </Modal>
-
-      <Modal :show="showStockModal" title="Add Stock Details" @close="closeStockModal">
-        <form @submit.prevent="submitStockToPortfolio">
-          <div class="stock-info">
-            <strong>{{ selectedStock?.symbol }}</strong> - {{ selectedStock?.name }}
-          </div>
-
-          <div class="form-group">
-            <label for="quantity">Quantity</label>
-            <input
-              id="quantity"
-              v-model.number="stockForm.quantity"
-              type="number"
-              step="0.000001"
-              min="0"
-              required
-              placeholder="0"
-            />
-          </div>
-
-          <div class="form-group">
-            <label for="purchasePrice">Purchase Price</label>
-            <input
-              id="purchasePrice"
-              v-model.number="stockForm.purchasePrice"
-              type="number"
-              step="0.01"
-              min="0"
-              required
-              placeholder="0.00"
-            />
-          </div>
-
-          <div class="form-group">
-            <label for="purchaseDate">Purchase Date</label>
-            <input
-              id="purchaseDate"
-              v-model="stockForm.purchaseDate"
-              type="datetime-local"
-              required
-            />
-          </div>
-
-          <div class="form-actions">
-            <button type="button" @click="closeStockModal" class="btn-secondary">Cancel</button>
-            <button type="submit" class="btn-primary" :disabled="portfolioStore.loading">
-              Add Stock
-            </button>
-          </div>
-        </form>
-      </Modal>
-
-      <Modal :show="showWatchlistModal" title="Add to Watchlist" @close="closeWatchlistModal">
-        <form @submit.prevent="submitToWatchlist">
-          <div class="stock-info">
-            <strong>{{ selectedStock?.symbol }}</strong> - {{ selectedStock?.name }}
-          </div>
-
-          <div class="form-group">
-            <label for="targetPrice">Target Price (optional)</label>
-            <input
-              id="targetPrice"
-              v-model.number="watchlistForm.targetPrice"
-              type="number"
-              step="0.01"
-              min="0"
-              placeholder="0.00"
-            />
-          </div>
-
-          <div class="form-group">
-            <label for="priority">Priority</label>
-            <select id="priority" v-model="watchlistForm.priority">
-              <option value="HIGH">High</option>
-              <option value="MEDIUM">Medium</option>
-              <option value="LOW">Low</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="notes">Notes (optional)</label>
-            <textarea
-              id="notes"
-              v-model="watchlistForm.notes"
-              rows="3"
-              placeholder="Add any notes about this stock..."
-            ></textarea>
-          </div>
-
-          <div class="form-actions">
-            <button type="button" @click="closeWatchlistModal" class="btn-secondary">Cancel</button>
-            <button type="submit" class="btn-primary" :disabled="watchlistStore.loading">
-              Add to Watchlist
-            </button>
-          </div>
-        </form>
-      </Modal>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import Navbar from '../components/Navbar.vue'
-import Modal from '../components/Modal.vue'
-import { usePortfolioStore } from '../stores/portfolio'
-import { useWatchlistStore } from '../stores/watchlist'
 import api from '../services/api'
 
-const portfolioStore = usePortfolioStore()
-const watchlistStore = useWatchlistStore()
+const router = useRouter()
 
 const searchQuery = ref('')
 const searchResults = ref([])
 const searching = ref(false)
-const selectedStock = ref(null)
-const selectedPortfolioId = ref(null)
-
-const showPortfolioModal = ref(false)
-const showStockModal = ref(false)
-const showWatchlistModal = ref(false)
-
-const stockForm = ref({
-  quantity: 0,
-  purchasePrice: 0,
-  purchaseDate: new Date().toISOString().slice(0, 16)
-})
-
-const watchlistForm = ref({
-  targetPrice: null,
-  priority: 'MEDIUM',
-  notes: ''
-})
+const selectedSector = ref('')
+const selectedIndustry = ref('')
+const selectedRisk = ref('')
+const sortField = ref('symbol')
+const sortDirection = ref('asc')
+const currentPage = ref(1)
+const itemsPerPage = 20
 
 let searchTimeout = null
 
+const uniqueSectors = computed(() => {
+  const sectors = searchResults.value.map(s => s.sector).filter(Boolean)
+  return [...new Set(sectors)].sort()
+})
+
+const uniqueIndustries = computed(() => {
+  const industries = searchResults.value.map(s => s.industry).filter(Boolean)
+  return [...new Set(industries)].sort()
+})
+
 const filteredResults = computed(() => {
-  return searchResults.value
+  let results = searchResults.value
+
+  if (selectedSector.value) {
+    results = results.filter(s => s.sector === selectedSector.value)
+  }
+
+  if (selectedIndustry.value) {
+    results = results.filter(s => s.industry === selectedIndustry.value)
+  }
+
+  if (selectedRisk.value) {
+    results = results.filter(s => {
+      const risk = s.risk || 0
+      if (selectedRisk.value === 'low') return risk <= 3
+      if (selectedRisk.value === 'medium') return risk > 3 && risk <= 6
+      if (selectedRisk.value === 'high') return risk > 6
+      return true
+    })
+  }
+
+  results = [...results].sort((a, b) => {
+    let aVal = a[sortField.value]
+    let bVal = b[sortField.value]
+
+    if (aVal == null) aVal = sortDirection.value === 'asc' ? Infinity : -Infinity
+    if (bVal == null) bVal = sortDirection.value === 'asc' ? Infinity : -Infinity
+
+    if (typeof aVal === 'string') {
+      return sortDirection.value === 'asc' 
+        ? aVal.localeCompare(bVal) 
+        : bVal.localeCompare(aVal)
+    }
+
+    return sortDirection.value === 'asc' ? aVal - bVal : bVal - aVal
+  })
+
+  return results
+})
+
+const totalPages = computed(() => {
+  return Math.ceil(filteredResults.value.length / itemsPerPage)
+})
+
+const paginatedResults = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage
+  const end = start + itemsPerPage
+  return filteredResults.value.slice(start, end)
+})
+
+watch([selectedSector, selectedIndustry, selectedRisk], () => {
+  currentPage.value = 1
 })
 
 onMounted(async () => {
-  portfolioStore.fetchPortfolios()
-  await loadPopularStocks()
+  await loadAllStocks()
 })
 
-async function loadPopularStocks() {
+async function loadAllStocks() {
   searching.value = true
   try {
-    const response = await api.get('/stocks/popular')
+    const response = await api.get('/stocks/search')
     searchResults.value = response.data
   } catch (error) {
-    console.error('Failed to load popular stocks:', error)
+    console.error('Failed to load stocks:', error)
     searchResults.value = []
   } finally {
     searching.value = false
@@ -251,7 +255,7 @@ function handleSearch() {
   }
 
   if (!searchQuery.value.trim()) {
-    loadPopularStocks()
+    loadAllStocks()
     return
   }
 
@@ -260,6 +264,7 @@ function handleSearch() {
     try {
       const response = await api.get(`/stocks/search?query=${encodeURIComponent(searchQuery.value)}`)
       searchResults.value = response.data
+      currentPage.value = 1
     } catch (error) {
       console.error('Search failed:', error)
       searchResults.value = []
@@ -269,75 +274,44 @@ function handleSearch() {
   }, 500)
 }
 
-function addToPortfolio(stock) {
-  selectedStock.value = stock
-  showPortfolioModal.value = true
-}
-
-function addStockToPortfolio(portfolioId) {
-  selectedPortfolioId.value = portfolioId
-  showPortfolioModal.value = false
-  showStockModal.value = true
-}
-
-async function submitStockToPortfolio() {
-  try {
-    await portfolioStore.addStock(selectedPortfolioId.value, {
-      symbol: selectedStock.value.symbol,
-      quantity: stockForm.value.quantity,
-      purchasePrice: stockForm.value.purchasePrice,
-      purchaseDate: new Date(stockForm.value.purchaseDate).toISOString()
-    })
-    closeStockModal()
-  } catch (error) {
-    console.error('Failed to add stock to portfolio:', error)
+function sortBy(field) {
+  if (sortField.value === field) {
+    sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortField.value = field
+    sortDirection.value = 'asc'
   }
 }
 
-function closeStockModal() {
-  showStockModal.value = false
-  selectedStock.value = null
-  selectedPortfolioId.value = null
-  stockForm.value = {
-    quantity: 0,
-    purchasePrice: 0,
-    purchaseDate: new Date().toISOString().slice(0, 16)
-  }
-}
-
-function addToWatchlist(stock) {
-  selectedStock.value = stock
-  showWatchlistModal.value = true
-}
-
-async function submitToWatchlist() {
-  try {
-    await watchlistStore.addToWatchlist({
-      symbol: selectedStock.value.symbol,
-      name: selectedStock.value.name,
-      type: selectedStock.value.type,
-      targetPrice: watchlistForm.value.targetPrice,
-      priority: watchlistForm.value.priority,
-      notes: watchlistForm.value.notes
-    })
-    closeWatchlistModal()
-  } catch (error) {
-    console.error('Failed to add to watchlist:', error)
-  }
-}
-
-function closeWatchlistModal() {
-  showWatchlistModal.value = false
-  selectedStock.value = null
-  watchlistForm.value = {
-    targetPrice: null,
-    priority: 'MEDIUM',
-    notes: ''
-  }
+function navigateToStock(symbol) {
+  router.push(`/stocks/${symbol}`)
 }
 
 function formatNumber(num) {
   return num?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'
+}
+
+function formatChange(num) {
+  if (!num) return '$0.00'
+  const formatted = Math.abs(num).toFixed(2)
+  return num >= 0 ? `+$${formatted}` : `-$${formatted}`
+}
+
+function formatPercent(num) {
+  if (!num && num !== 0) return '0.00'
+  return num >= 0 ? `+${num.toFixed(2)}` : num.toFixed(2)
+}
+
+function getDailyChangeClass(changePercent) {
+  if (!changePercent) return ''
+  return changePercent >= 0 ? 'positive-change' : 'negative-change'
+}
+
+function getRiskClass(risk) {
+  if (!risk) return ''
+  if (risk <= 3) return 'risk-low'
+  if (risk <= 6) return 'risk-medium'
+  return 'risk-high'
 }
 </script>
 
@@ -349,7 +323,7 @@ function formatNumber(num) {
 }
 
 .header-section {
-  margin-bottom: 3rem;
+  margin-bottom: 2rem;
 }
 
 h1 {
@@ -410,142 +384,180 @@ input[type="text"]:focus {
   to { transform: rotate(360deg); }
 }
 
+.filters-section {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  flex: 1;
+  min-width: 200px;
+}
+
+.filter-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #666;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.filter-group select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+  background: white;
+  cursor: pointer;
+  transition: border-color 0.3s;
+}
+
+.filter-group select:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
 .results-section {
   margin-top: 2rem;
 }
 
-.results-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 2rem;
-}
-
-.stock-card {
+.table-container {
   background: white;
-  border-radius: 20px;
-  padding: 2rem;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 2px solid transparent;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
 }
 
-.stock-card:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 12px 32px rgba(102, 126, 234, 0.2);
-  border-color: #667eea;
+.stocks-table {
+  width: 100%;
+  border-collapse: collapse;
 }
 
-.stock-icon {
-  width: 64px;
-  height: 64px;
+.stocks-table thead {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 1.5rem;
   color: white;
 }
 
-.stock-header {
-  margin-bottom: 1.5rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-
-.stock-symbol {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: #333;
-  text-decoration: none;
-  transition: color 0.3s;
-}
-
-.stock-symbol:hover {
-  color: #667eea;
-}
-
-.stock-name {
-  color: #666;
-  font-size: 0.95rem;
-  margin-top: 0.5rem;
-  line-height: 1.4;
-}
-
-.stock-type {
-  display: inline-block;
-  padding: 0.4rem 0.9rem;
-  background: #f0f4ff;
-  color: #667eea;
-  border-radius: 8px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.stock-price-section {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
+.stocks-table th {
   padding: 1rem;
-  background: #f8f9fa;
-  border-radius: 12px;
+  text-align: left;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.3s;
 }
 
-.stock-price {
-  font-size: 1.75rem;
-  font-weight: 700;
+.stocks-table th.sortable:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.stocks-table th.right-align {
+  text-align: right;
+}
+
+.stocks-table tbody tr {
+  border-bottom: 1px solid #e0e0e0;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.stocks-table tbody tr:hover {
+  background: #f8f9fa;
+}
+
+.stocks-table td {
+  padding: 1rem;
+}
+
+.stocks-table td.right-align {
+  text-align: right;
+}
+
+.symbol-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 600;
   color: #333;
 }
 
-.stock-score {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #667eea;
-}
-
-.stock-actions {
-  display: flex;
-  gap: 0.75rem;
-}
-
-.btn-action {
-  flex: 1;
+.stock-icon-small {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  padding: 0.875rem;
-  border: none;
-  border-radius: 12px;
+  color: white;
+  flex-shrink: 0;
+}
+
+.positive-change {
+  color: #10b981;
   font-weight: 600;
-  font-size: 0.95rem;
+}
+
+.negative-change {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.risk-low {
+  color: #10b981;
+  font-weight: 600;
+}
+
+.risk-medium {
+  color: #f59e0b;
+  font-weight: 600;
+}
+
+.risk-high {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem;
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.pagination-btn {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.3s;
 }
 
-.btn-action.primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-}
-
-.btn-action.primary:hover {
+.pagination-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
 }
 
-.btn-action.secondary {
-  background: white;
-  color: #667eea;
-  border: 2px solid #667eea;
+.pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
 }
 
-.btn-action.secondary:hover {
-  background: #667eea;
-  color: white;
-  transform: translateY(-2px);
+.page-info {
+  font-weight: 600;
+  color: #333;
 }
 
 .empty-state {
@@ -579,120 +591,5 @@ input[type="text"]:focus {
 .loading-state p {
   color: #666;
   font-size: 1.1rem;
-}
-
-.portfolio-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-top: 1rem;
-}
-
-.portfolio-option {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  background: #f5f5f5;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.3s;
-}
-
-.portfolio-option:hover {
-  background: #e0e0e0;
-}
-
-.portfolio-icon {
-  font-size: 1.5rem;
-}
-
-.portfolio-name {
-  font-weight: 600;
-  color: #333;
-}
-
-.stock-info {
-  background: #f5f5f5;
-  padding: 1rem;
-  border-radius: 8px;
-  margin-bottom: 1.5rem;
-  color: #333;
-}
-
-.form-group {
-  margin-bottom: 1.5rem;
-}
-
-label {
-  display: block;
-  margin-bottom: 0.5rem;
-  color: #555;
-  font-weight: 500;
-}
-
-input,
-select,
-textarea {
-  width: 100%;
-  padding: 0.75rem;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-family: inherit;
-  transition: border-color 0.3s;
-  box-sizing: border-box;
-}
-
-input:focus,
-select:focus,
-textarea:focus {
-  outline: none;
-  border-color: #667eea;
-}
-
-.form-actions {
-  display: flex;
-  gap: 1rem;
-  justify-content: flex-end;
-  margin-top: 2rem;
-}
-
-.btn-primary {
-  padding: 0.75rem 1.5rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  text-decoration: none;
-  display: inline-block;
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.btn-primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-}
-
-.btn-primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btn-secondary {
-  padding: 0.75rem 1.5rem;
-  background: #e0e0e0;
-  color: #333;
-  border: none;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.3s;
-}
-
-.btn-secondary:hover {
-  background: #d0d0d0;
 }
 </style>

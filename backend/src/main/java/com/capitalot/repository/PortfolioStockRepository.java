@@ -12,6 +12,9 @@ import java.util.List;
 public interface PortfolioStockRepository extends JpaRepository<PortfolioStock, Long> {
     List<PortfolioStock> findByPortfolioId(Long portfolioId);
     
+    @Query("SELECT ps FROM PortfolioStock ps WHERE ps.portfolio.user.id = :userId")
+    List<PortfolioStock> findByUserId(@Param("userId") Long userId);
+    
     @Query("SELECT ps FROM PortfolioStock ps WHERE ps.portfolio.user.id = :userId " +
            "AND ps.purchaseDate BETWEEN :startDate AND :endDate")
     List<PortfolioStock> findByUserIdAndDateRange(

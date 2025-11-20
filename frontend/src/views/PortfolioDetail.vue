@@ -93,11 +93,8 @@
                 :class="{ selected: selectedStock?.symbol === stock.symbol }"
                 @click="selectStock(stock)"
               >
-                <div class="stock-info">
-                  <div class="stock-symbol">{{ stock.symbol }}</div>
-                  <div class="stock-name">{{ stock.name }}</div>
-                </div>
-                <div class="stock-price">${{ formatNumber(stock.currentPrice || 0) }}</div>
+                <div class="stock-symbol-icon">{{ stock.symbol }}</div>
+                <div class="stock-name">{{ stock.name }}</div>
               </div>
             </div>
 

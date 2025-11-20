@@ -35,22 +35,25 @@ public class StockSearchService {
     public void initializePopularStocks() {
         if (stockRepository.count() == 0) {
             List<Stock> popularStocks = Arrays.asList(
-                createStock("AAPL", "Apple Inc.", "NASDAQ", "Technology", "Consumer Electronics", true, 180.0),
-                createStock("MSFT", "Microsoft Corporation", "NASDAQ", "Technology", "Software", true, 420.0),
-                createStock("GOOGL", "Alphabet Inc.", "NASDAQ", "Technology", "Internet Services", true, 142.0),
-                createStock("AMZN", "Amazon.com Inc.", "NASDAQ", "Consumer Cyclical", "Internet Retail", true, 175.0),
-                createStock("TSLA", "Tesla Inc.", "NASDAQ", "Consumer Cyclical", "Auto Manufacturers", true, 242.0),
-                createStock("NVDA", "NVIDIA Corporation", "NASDAQ", "Technology", "Semiconductors", true, 495.0),
-                createStock("META", "Meta Platforms Inc.", "NASDAQ", "Technology", "Internet Services", true, 520.0),
-                createStock("BRK.B", "Berkshire Hathaway Inc.", "NYSE", "Financial", "Insurance", true, 445.0),
-                createStock("V", "Visa Inc.", "NYSE", "Financial", "Credit Services", true, 280.0),
-                createStock("JPM", "JPMorgan Chase & Co.", "NYSE", "Financial", "Banks", true, 195.0)
+                createStock("AAPL", "Apple Inc.", "NASDAQ", "Technology", "Consumer Electronics", true, "Apple designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories worldwide.", 0.96, 4.5),
+                createStock("MSFT", "Microsoft Corporation", "NASDAQ", "Technology", "Software", true, "Microsoft develops, licenses, and supports software, services, devices, and solutions worldwide.", 0.75, 3.2),
+                createStock("GOOGL", "Alphabet Inc.", "NASDAQ", "Technology", "Internet Services", true, "Alphabet provides various products and services in the United States, Europe, the Middle East, Africa, the Asia-Pacific, Canada, and Latin America.", 0.0, 6.8),
+                createStock("AMZN", "Amazon.com Inc.", "NASDAQ", "Consumer Cyclical", "Internet Retail", true, "Amazon engages in the retail sale of consumer products and subscriptions in North America and internationally.", 0.0, 5.5),
+                createStock("TSLA", "Tesla Inc.", "NASDAQ", "Consumer Cyclical", "Auto Manufacturers", true, "Tesla designs, develops, manufactures, leases, and sells electric vehicles, and energy generation and storage systems.", 0.0, 8.2),
+                createStock("NVDA", "NVIDIA Corporation", "NASDAQ", "Technology", "Semiconductors", true, "NVIDIA provides graphics, and compute and networking solutions in the United States, Taiwan, China, and internationally.", 0.03, 7.1),
+                createStock("META", "Meta Platforms Inc.", "NASDAQ", "Technology", "Internet Services", true, "Meta Platforms builds technologies that help people connect, find communities, and grow businesses.", 0.0, 6.5),
+                createStock("BRK.B", "Berkshire Hathaway Inc.", "NYSE", "Financial", "Insurance", true, "Berkshire Hathaway provides insurance and reinsurance, utilities and energy, freight rail transportation, and other services.", 0.0, 4.0),
+                createStock("V", "Visa Inc.", "NYSE", "Financial", "Credit Services", true, "Visa operates as a payments technology company worldwide.", 0.87, 3.8),
+                createStock("JPM", "JPMorgan Chase & Co.", "NYSE", "Financial", "Banks", true, "JPMorgan Chase provides various financial services worldwide.", 2.62, 5.2)
             );
             stockRepository.saveAll(popularStocks);
         }
     }
     
-    private Stock createStock(String symbol, String name, String exchange, String sector, String industry, boolean isPopular, double basePrice) {
+    private Stock createStock(String symbol, String name, String exchange, String sector, String industry, boolean isPopular, String description, double annualDividend, double risk) {
+        double longPct = 50.0 + random.nextDouble() * 40.0;
+        double shortPct = 100.0 - longPct;
+        
         return Stock.builder()
             .symbol(symbol)
             .name(name)
@@ -59,6 +62,11 @@ public class StockSearchService {
             .sector(sector)
             .industry(industry)
             .isPopular(isPopular)
+            .description(description)
+            .annualDividend(annualDividend)
+            .risk(risk)
+            .longPercentage(longPct)
+            .shortPercentage(shortPct)
             .marketScore(70.0 + random.nextDouble() * 30.0)
             .build();
     }

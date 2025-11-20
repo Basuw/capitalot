@@ -28,19 +28,33 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="item in watchlistStore.watchlist" :key="item.id">
+            <tr 
+              v-for="item in watchlistStore.watchlist" 
+              :key="item.id"
+              @click="goToStock(item.stock.symbol)"
+              class="clickable-row"
+            >
               <td class="symbol">
-                <router-link :to="`/stocks/${item.stock.symbol}`" class="stock-link">
-                  {{ item.stock.symbol }}
-                </router-link>
+                <span class="stock-link">{{ item.stock.symbol }}</span>
               </td>
               <td>{{ item.stock.name }}</td>
               <td>
                 <span v-if="item.stock?.type" :class="['type-badge', item.stock.type.toLowerCase()]">{{ item.stock.type }}</span>
                 <span v-else>-</span>
               </td>
-              <td>${{ formatNumber(item.currentPrice) }}</td>
-              <td @click="startEdit(item.id, 'targetPrice')" class="editable">
+              <td>
+                <div class="price-column">
+                  <div class="price">${{ formatNumber(item.stock.currentPrice) }}</div>
+                  <div 
+                    v-if="item.stock.dailyChange !== undefined" 
+                    :class="['daily-change', item.stock.dailyChange >= 0 ? 'positive' : 'negative']"
+                  >
+                    {{ item.stock.dailyChange >= 0 ? '+' : '' }}${{ formatNumber(Math.abs(item.stock.dailyChange)) }}
+                    ({{ item.stock.dailyChange >= 0 ? '+' : '' }}{{ formatPercent(item.stock.dailyChangePercentage) }}%)
+                  </div>
+                </div>
+              </td>
+              <td @click.stop="startEdit(item.id, 'targetPrice')" class="editable">
                 <span v-if="editingCell?.id !== item.id || editingCell?.field !== 'targetPrice'">
                   ${{ formatNumber(item.targetPrice) }}
                 </span>
@@ -56,7 +70,7 @@
                   ref="editInput"
                 />
               </td>
-              <td @click="startEdit(item.id, 'priority')" class="editable">
+              <td @click.stop="startEdit(item.id, 'priority')" class="editable">
                 <span v-if="editingCell?.id !== item.id || editingCell?.field !== 'priority'" :class="['priority-badge', item.priority?.toLowerCase() || 'medium']">
                   {{ item.priority || 'MEDIUM' }}
                 </span>
@@ -74,7 +88,7 @@
                   <option value="LOW">Low</option>
                 </select>
               </td>
-              <td @click="startEdit(item.id, 'tags')" class="editable tags-cell">
+              <td @click.stop="startEdit(item.id, 'tags')" class="editable tags-cell">
                 <div v-if="editingCell?.id !== item.id || editingCell?.field !== 'tags'" class="tags-display">
                   <span v-for="tag in item.tags" :key="tag.id" class="tag-badge">
                     {{ tag.name }}
@@ -109,7 +123,7 @@
                   </div>
                 </div>
               </td>
-              <td @click="startEdit(item.id, 'notes')" class="editable notes">
+              <td @click.stop="startEdit(item.id, 'notes')" class="editable notes">
                 <span v-if="editingCell?.id !== item.id || editingCell?.field !== 'notes'">
                   {{ item.notes || '-' }}
                 </span>
@@ -123,7 +137,7 @@
                   ref="editInput"
                 />
               </td>
-              <td>
+              <td @click.stop>
                 <button @click="removeItemConfirm(item.id)" class="btn-icon-modern delete" title="Remove">
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                 </button>
@@ -218,11 +232,13 @@
 
 <script setup>
 import { ref, onMounted, computed, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import Navbar from '../components/Navbar.vue'
 import Modal from '../components/Modal.vue'
 import { useWatchlistStore } from '../stores/watchlist'
 import api from '../services/api'
 
+const router = useRouter()
 const watchlistStore = useWatchlistStore()
 
 const showAddModal = ref(false)
@@ -414,6 +430,15 @@ function closeModal() {
 function formatNumber(num) {
   return num?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'
 }
+
+function formatPercent(num) {
+  if (num === null || num === undefined || isNaN(num)) return '0.00'
+  return Number(num).toFixed(2)
+}
+
+function goToStock(symbol) {
+  router.push(`/stocks/${symbol}`)
+}
 </script>
 
 <style scoped>
@@ -501,6 +526,15 @@ tr:hover {
   background: #f9f9f9;
 }
 
+.clickable-row {
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.clickable-row:hover {
+  background: #f0f3ff;
+}
+
 .symbol {
   font-weight: 700;
 }
@@ -509,11 +543,35 @@ tr:hover {
   color: #667eea;
   text-decoration: none;
   transition: color 0.3s;
+  cursor: pointer;
 }
 
 .stock-link:hover {
   color: #764ba2;
-  text-decoration: underline;
+}
+
+.price-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.price {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.daily-change {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.daily-change.positive {
+  color: #10b981;
+}
+
+.daily-change.negative {
+  color: #ef4444;
 }
 
 .type-badge {

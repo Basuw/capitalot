@@ -46,8 +46,25 @@ public class Stock {
     
     private Double marketScore;
     
+    @Column(columnDefinition = "TEXT")
+    private String description;
+    
+    private Double annualDividend;
+    
+    private Double risk;
+    
+    private Double longPercentage;
+    
+    private Double shortPercentage;
+    
     @Transient
     private Double currentPrice;
+    
+    @Transient
+    private Double dailyChange;
+    
+    @Transient
+    private Double dailyChangePercentage;
     
     @ManyToMany
     @JoinTable(
@@ -78,5 +95,8 @@ public class Stock {
     protected void calculateCurrentPrice() {
         Random random = new Random(symbol.hashCode());
         currentPrice = 50.0 + random.nextDouble() * 450.0;
+        
+        dailyChange = -10.0 + random.nextDouble() * 20.0;
+        dailyChangePercentage = (dailyChange / currentPrice) * 100.0;
     }
 }

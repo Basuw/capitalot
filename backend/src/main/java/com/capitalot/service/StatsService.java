@@ -50,18 +50,47 @@ public class StatsService {
     }
     
     public PerformanceStats getAllTimeStats(String email) {
-        LocalDateTime minDate = LocalDateTime.of(1900, 1, 1, 0, 0);
-        LocalDateTime maxDate = LocalDateTime.of(2100, 12, 31, 23, 59);
-        return calculateStats(email, minDate, maxDate);
+        User user = userRepository.findByEmail(email)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        List<PortfolioStock> stocks = portfolioStockRepository.findByUserId(user.getId());
+        
+        BigDecimal totalInvested = BigDecimal.ZERO;
+        BigDecimal currentValue = BigDecimal.ZERO;
+        
+        for (PortfolioStock ps : stocks) {
+            BigDecimal invested = ps.getPurchasePrice().multiply(ps.getQuantity());
+            totalInvested = totalInvested.add(invested);
+            
+            StockPriceResponse priceResponse = stockPriceService.getStockPrice(ps.getStock().getSymbol());
+            BigDecimal current = priceResponse.getCurrentPrice().multiply(ps.getQuantity());
+            currentValue = currentValue.add(current);
+        }
+        
+        BigDecimal gainLoss = currentValue.subtract(totalInvested);
+        BigDecimal gainLossPercent = totalInvested.compareTo(BigDecimal.ZERO) > 0
+            ? gainLoss.divide(totalInvested, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100))
+            : BigDecimal.ZERO;
+        
+        return PerformanceStats.builder()
+            .totalInvested(totalInvested)
+            .currentValue(currentValue)
+            .totalGainLoss(gainLoss)
+            .totalGainLossPercent(gainLossPercent)
+            .numberOfStocks(stocks.size())
+            .build();
     }
     
     public List<PortfolioPerformanceDto> getPerformanceHistory(String email, String period) {
+        User user = userRepository.findByEmail(email)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+        
         LocalDateTime startDate = getStartDateFromPeriod(period);
         List<PortfolioHistory> history = portfolioHistoryRepository
             .findByUserEmailAndTimestampAfter(email, startDate);
         
         if (history.isEmpty()) {
-            return generateMockPerformanceHistory(email, period);
+            return generateMockPerformanceHistory(user.getId(), period);
         }
         
         return history.stream()
@@ -119,21 +148,42 @@ public class StatsService {
         };
     }
     
-    private List<PortfolioPerformanceDto> generateMockPerformanceHistory(String email, String period) {
+    private List<PortfolioPerformanceDto> generateMockPerformanceHistory(Long userId, String period) {
         List<PortfolioPerformanceDto> points = new ArrayList<>();
         LocalDateTime startDate = getStartDateFromPeriod(period);
         LocalDateTime now = LocalDateTime.now();
         
-        double baseValue = 10000 + random.nextDouble() * 40000;
+        List<PortfolioStock> stocks = portfolioStockRepository.findByUserId(userId);
+        
+        double baseValue = 0;
+        for (PortfolioStock ps : stocks) {
+            StockPriceResponse priceResponse = stockPriceService.getStockPrice(ps.getStock().getSymbol());
+            baseValue += priceResponse.getCurrentPrice().doubleValue() * ps.getQuantity().doubleValue();
+        }
+        
+        if (baseValue == 0) {
+            baseValue = 10000 + random.nextDouble() * 40000;
+        }
+        
         int dataPoints = getDataPointsForPeriod(period);
         long totalMinutes = java.time.Duration.between(startDate, now).toMinutes();
-        long intervalMinutes = totalMinutes / dataPoints;
+        long intervalMinutes = Math.max(1, totalMinutes / dataPoints);
         
         for (int i = 0; i < dataPoints; i++) {
             LocalDateTime timestamp = startDate.plusMinutes(intervalMinutes * i);
-            double variation = (random.nextDouble() - 0.4) * 1000;
+            double variation = (random.nextDouble() - 0.45) * (baseValue * 0.05);
             double value = baseValue + variation;
-            double gainLoss = value - 10000;
+            
+            double totalInvested = 0;
+            for (PortfolioStock ps : stocks) {
+                totalInvested += ps.getPurchasePrice().doubleValue() * ps.getQuantity().doubleValue();
+            }
+            
+            if (totalInvested == 0) {
+                totalInvested = baseValue * 0.85;
+            }
+            
+            double gainLoss = value - totalInvested;
             
             points.add(PortfolioPerformanceDto.builder()
                 .timestamp(timestamp)

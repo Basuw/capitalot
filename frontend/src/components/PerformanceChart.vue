@@ -1,6 +1,8 @@
 <template>
-  <div class="chart-container">
-    <Line :data="chartData" :options="chartOptions" />
+  <div class="chart-wrapper">
+    <div class="chart-container">
+      <Line :data="chartData" :options="chartOptions" />
+    </div>
   </div>
 </template>
 
@@ -42,12 +44,28 @@ const props = defineProps({
   color: {
     type: String,
     default: '#667eea'
+  },
+  selectedRange: {
+    type: String,
+    default: 'ALL'
   }
+})
+
+const isMultiYear = computed(() => {
+  if (props.data.length < 2) return false
+  
+  const firstDate = new Date(props.data[0].timestamp)
+  const lastDate = new Date(props.data[props.data.length - 1].timestamp)
+  
+  return lastDate.getFullYear() - firstDate.getFullYear() >= 1
 })
 
 const chartData = computed(() => ({
   labels: props.data.map(point => {
     const date = new Date(point.timestamp)
+    if (isMultiYear.value) {
+      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' })
+    }
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }),
   datasets: [
@@ -108,7 +126,7 @@ const chartOptions = {
     },
     x: {
       ticks: {
-        maxTicksLimit: 6,
+        maxTicksLimit: isMultiYear.value ? 8 : 6,
         autoSkip: true
       },
       grid: {
@@ -120,6 +138,10 @@ const chartOptions = {
 </script>
 
 <style scoped>
+.chart-wrapper {
+  width: 100%;
+}
+
 .chart-container {
   height: 300px;
   width: 100%;

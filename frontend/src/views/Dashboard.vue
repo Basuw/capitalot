@@ -64,7 +64,7 @@
         
         <div v-if="loadingChart" class="loading">Loading chart...</div>
         <div v-else-if="performanceData.length" class="chart-card">
-          <PerformanceChart :data="performanceData" label="Total Value" />
+          <PerformanceChart :data="performanceData" label="Total Value" :selectedRange="selectedPeriod" />
         </div>
         <div v-else class="empty-chart">No performance data available</div>
       </div>
@@ -130,7 +130,7 @@ const periods = [
   { label: '3M', value: '3M' },
   { label: '6M', value: '6M' },
   { label: '1Y', value: '1Y' },
-  { label: '5Y', value: '5Y' }
+  { label: 'ALL', value: '5Y' }
 ]
 
 onMounted(async () => {
