@@ -38,6 +38,10 @@ public class PortfolioStock {
     
     private String notes;
     
+    private BigDecimal salePrice;
+    
+    private LocalDateTime saleDate;
+    
     @Column(nullable = false)
     private LocalDateTime createdAt;
     

@@ -1,6 +1,8 @@
 package com.capitalot.controller;
 
 import com.capitalot.dto.AddStockRequest;
+import com.capitalot.dto.PerformanceStats;
+import com.capitalot.dto.SellStockRequest;
 import com.capitalot.model.Portfolio;
 import com.capitalot.model.PortfolioStock;
 import com.capitalot.service.PortfolioService;
@@ -66,5 +68,21 @@ public class PortfolioController {
     public ResponseEntity<Void> removeStock(@PathVariable Long portfolioStockId) {
         portfolioService.removeStockFromPortfolio(portfolioStockId);
         return ResponseEntity.noContent().build();
+    }
+    
+    @PutMapping("/stocks/{portfolioStockId}/sell")
+    public ResponseEntity<PortfolioStock> sellStock(
+            @PathVariable Long portfolioStockId,
+            @RequestBody SellStockRequest request,
+            Authentication authentication) {
+        return ResponseEntity.ok(portfolioService.sellStock(portfolioStockId, request, authentication.getName()));
+    }
+    
+    @GetMapping("/{portfolioId}/performance")
+    public ResponseEntity<PerformanceStats> getPortfolioPerformance(
+            @PathVariable Long portfolioId,
+            @RequestParam(defaultValue = "ALL") String range,
+            Authentication authentication) {
+        return ResponseEntity.ok(portfolioService.getPortfolioPerformance(portfolioId, range, authentication.getName()));
     }
 }

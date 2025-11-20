@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
+import java.util.List;
 
 @Data
 @Builder
@@ -16,4 +17,5 @@ public class PerformanceStats {
     private BigDecimal totalGainLoss;
     private BigDecimal totalGainLossPercent;
     private Integer numberOfStocks;
+    private List<PortfolioPerformanceDto> performanceHistory;
 }

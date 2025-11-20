@@ -44,11 +44,19 @@ public class WatchlistController {
         return ResponseEntity.ok(watchlist);
     }
     
-    @PostMapping("/items")
+    @GetMapping("/{watchlistId}/items")
+    public ResponseEntity<List<WatchlistItem>> getWatchlistItems(
+            @PathVariable Long watchlistId,
+            Authentication authentication) {
+        return ResponseEntity.ok(watchlistService.getWatchlistItems(watchlistId, authentication.getName()));
+    }
+    
+    @PostMapping("/{watchlistId}/items")
     public ResponseEntity<WatchlistItem> addItemToWatchlist(
+            @PathVariable Long watchlistId,
             @RequestBody AddStockRequest request,
             Authentication authentication) {
-        return ResponseEntity.ok(watchlistService.addItemToWatchlist(authentication.getName(), request));
+        return ResponseEntity.ok(watchlistService.addItemToWatchlist(watchlistId, authentication.getName(), request));
     }
     
     @PutMapping("/items/{itemId}")

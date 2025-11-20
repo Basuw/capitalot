@@ -96,8 +96,8 @@ public class StatsService {
         return history.stream()
             .map(h -> PortfolioPerformanceDto.builder()
                 .timestamp(h.getTimestamp())
-                .totalValue(h.getTotalValue())
-                .gainLoss(h.getGainLoss())
+                .totalValue(BigDecimal.valueOf(h.getTotalValue()))
+                .gainLoss(BigDecimal.valueOf(h.getGainLoss()))
                 .build())
             .toList();
     }
@@ -187,8 +187,8 @@ public class StatsService {
             
             points.add(PortfolioPerformanceDto.builder()
                 .timestamp(timestamp)
-                .totalValue(value)
-                .gainLoss(gainLoss)
+                .totalValue(BigDecimal.valueOf(value))
+                .gainLoss(BigDecimal.valueOf(gainLoss))
                 .build());
             
             baseValue = value;

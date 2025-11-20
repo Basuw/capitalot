@@ -93,6 +93,10 @@
                 <span class="label">Stocks:</span>
                 <span class="value">{{ portfolio.stocks?.length || 0 }}</span>
               </div>
+              <div class="portfolio-stat">
+                <span class="label">Current Value:</span>
+                <span class="value">${{ formatNumber(portfolio.totalValue) }}</span>
+              </div>
             </div>
           </div>
         </div>

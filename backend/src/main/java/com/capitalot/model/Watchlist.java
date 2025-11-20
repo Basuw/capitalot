@@ -4,8 +4,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "watchlists")
@@ -33,14 +33,10 @@ public class Watchlist {
     @JsonIgnoreProperties({"portfolios", "watchlists", "password", "hibernateLazyInitializer", "handler"})
     private User user;
     
-    @ManyToMany
-    @JoinTable(
-        name = "watchlist_stocks",
-        joinColumns = @JoinColumn(name = "watchlist_id"),
-        inverseJoinColumns = @JoinColumn(name = "stock_id")
-    )
-    @JsonIgnoreProperties({"tags", "hibernateLazyInitializer", "handler"})
-    private Set<Stock> stocks = new HashSet<>();
+    @OneToMany(mappedBy = "watchlist", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnoreProperties({"watchlist", "user"})
+    @Builder.Default
+    private List<WatchlistItem> items = new ArrayList<>();
     
     @Column(nullable = false)
     private LocalDateTime createdAt;

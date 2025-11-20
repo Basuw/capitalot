@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface WatchlistItemRepository extends JpaRepository<WatchlistItem, Long> {
     List<WatchlistItem> findByUserEmail(String email);
+    List<WatchlistItem> findByWatchlistId(Long watchlistId);
 }

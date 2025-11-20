@@ -32,6 +32,17 @@ public class WatchlistService {
         return watchlistItemRepository.findByUserEmail(email);
     }
     
+    public List<WatchlistItem> getWatchlistItems(Long watchlistId, String email) {
+        User user = userRepository.findByEmail(email)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+        Watchlist watchlist = watchlistRepository.findById(watchlistId)
+            .orElseThrow(() -> new RuntimeException("Watchlist not found"));
+        if (!watchlist.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("Unauthorized access to watchlist");
+        }
+        return watchlistItemRepository.findByWatchlistId(watchlistId);
+    }
+    
     @Transactional
     public Watchlist createWatchlist(String email, String name, String description, String icon, String link) {
         User user = userRepository.findByEmail(email)
@@ -49,9 +60,16 @@ public class WatchlistService {
     }
     
     @Transactional
-    public WatchlistItem addItemToWatchlist(String email, AddStockRequest request) {
+    public WatchlistItem addItemToWatchlist(Long watchlistId, String email, AddStockRequest request) {
         User user = userRepository.findByEmail(email)
             .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        Watchlist watchlist = watchlistRepository.findById(watchlistId)
+            .orElseThrow(() -> new RuntimeException("Watchlist not found"));
+        
+        if (!watchlist.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("Unauthorized access to watchlist");
+        }
         
         Stock stock = stockRepository.findBySymbol(request.getSymbol())
             .orElseGet(() -> {
@@ -77,6 +95,7 @@ public class WatchlistService {
         
         WatchlistItem item = WatchlistItem.builder()
             .user(user)
+            .watchlist(watchlist)
             .stock(stock)
             .targetPrice(request.getTargetPrice())
             .priority(request.getPriority() != null ? request.getPriority() : Priority.MEDIUM)
@@ -130,7 +149,6 @@ public class WatchlistService {
         Stock stock = stockRepository.findById(stockId)
             .orElseThrow(() -> new RuntimeException("Stock not found"));
         
-        watchlist.getStocks().add(stock);
         return watchlistRepository.save(watchlist);
     }
     
@@ -142,7 +160,6 @@ public class WatchlistService {
         Stock stock = stockRepository.findById(stockId)
             .orElseThrow(() -> new RuntimeException("Stock not found"));
         
-        watchlist.getStocks().remove(stock);
         return watchlistRepository.save(watchlist);
     }
     

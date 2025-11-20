@@ -112,7 +112,7 @@ export const usePortfolioStore = defineStore('portfolio', () => {
     loading.value = true
     error.value = null
     try {
-      await api.delete(`/portfolios/${portfolioId}/stocks/${stockId}`)
+      await api.delete(`/portfolios/stocks/${stockId}`)
       if (currentPortfolio.value?.id === portfolioId) {
         await fetchPortfolioById(portfolioId)
       }

@@ -24,6 +24,11 @@ public class WatchlistItem {
     @JsonIgnoreProperties({"portfolios", "watchlists", "password", "hibernateLazyInitializer", "handler"})
     private User user;
     
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "watchlist_id")
+    @JsonIgnoreProperties({"items", "user", "hibernateLazyInitializer", "handler"})
+    private Watchlist watchlist;
+    
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "stock_id", nullable = false)
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
