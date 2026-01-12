@@ -22,6 +22,10 @@
         <span class="nav-icon">🔍</span>
         <span class="nav-text">Actions</span>
       </router-link>
+      <router-link to="/profile" class="nav-item">
+        <span class="nav-icon">⚙️</span>
+        <span class="nav-text">Profile</span>
+      </router-link>
     </nav>
 
     <div class="sidebar-footer">

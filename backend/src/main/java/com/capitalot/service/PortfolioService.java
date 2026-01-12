@@ -63,7 +63,30 @@ public class PortfolioService {
         if (!portfolio.getUser().getId().equals(user.getId())) {
             throw new RuntimeException("Unauthorized access to portfolio");
         }
+        
+        // Force load stocks
         portfolio.getStocks().size();
+        
+        // Enrich each stock with current prices
+        for (PortfolioStock ps : portfolio.getStocks()) {
+            if (ps.getSaleDate() == null) {  // Only for stocks not yet sold
+                StockPriceResponse priceResponse = stockPriceService.getStockPrice(ps.getStock().getSymbol());
+                
+                // Set current price
+                ps.setCurrentPrice(priceResponse.getCurrentPrice().doubleValue());
+                
+                // Calculate current value
+                double currentValue = ps.getQuantity().doubleValue() * priceResponse.getCurrentPrice().doubleValue();
+                ps.setCurrentValue(currentValue);
+                
+                // Calculate gain/loss based on PURCHASE price
+                double purchaseValue = ps.getQuantity().doubleValue() * ps.getPurchasePrice().doubleValue();
+                double gainLoss = currentValue - purchaseValue;
+                ps.setGainLoss(gainLoss);
+                ps.setGainLossPercentage((gainLoss / purchaseValue) * 100.0);
+            }
+        }
+        
         return portfolio;
     }
     
@@ -166,17 +189,21 @@ public class PortfolioService {
         BigDecimal totalInvested = BigDecimal.ZERO;
         BigDecimal currentValue = BigDecimal.ZERO;
         
+        // Calculate totals for all stocks not yet sold
         for (PortfolioStock ps : stocks) {
             if (ps.getSaleDate() == null) {
+                // Total invested = sum of (purchase price * quantity)
                 BigDecimal invested = ps.getPurchasePrice().multiply(ps.getQuantity());
                 totalInvested = totalInvested.add(invested);
                 
+                // Current value = sum of (current price * quantity)
                 StockPriceResponse priceResponse = stockPriceService.getStockPrice(ps.getStock().getSymbol());
                 BigDecimal current = priceResponse.getCurrentPrice().multiply(ps.getQuantity());
                 currentValue = currentValue.add(current);
             }
         }
         
+        // Total gain/loss = current value - total invested
         BigDecimal gainLoss = currentValue.subtract(totalInvested);
         BigDecimal gainLossPercent = totalInvested.compareTo(BigDecimal.ZERO) > 0
             ? gainLoss.divide(totalInvested, 4, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100))

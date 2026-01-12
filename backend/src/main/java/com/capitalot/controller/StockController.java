@@ -1,8 +1,10 @@
 package com.capitalot.controller;
 
 import com.capitalot.dto.PricePointDto;
+import com.capitalot.dto.StockPerformanceMetrics;
 import com.capitalot.dto.StockPriceResponse;
 import com.capitalot.model.Stock;
+import com.capitalot.service.StockMetricsService;
 import com.capitalot.service.StockPriceService;
 import com.capitalot.service.StockSearchService;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +20,7 @@ public class StockController {
     
     private final StockSearchService stockSearchService;
     private final StockPriceService stockPriceService;
+    private final StockMetricsService stockMetricsService;
     
     @GetMapping("/search")
     public ResponseEntity<List<Stock>> searchStocks(@RequestParam(required = false) String query) {
@@ -49,5 +52,13 @@ public class StockController {
     @GetMapping("/{symbol}/price-history")
     public ResponseEntity<List<PricePointDto>> getPriceHistory(@PathVariable String symbol) {
         return ResponseEntity.ok(stockPriceService.getPriceHistory(symbol));
+    }
+    
+    @GetMapping("/{symbol}/metrics")
+    public ResponseEntity<StockPerformanceMetrics> getStockMetrics(
+            @PathVariable String symbol,
+            @RequestParam(required = false, defaultValue = "1M") String period,
+            @RequestParam(required = false, defaultValue = "SPY") String benchmark) {
+        return ResponseEntity.ok(stockMetricsService.calculateMetrics(symbol, period, benchmark));
     }
 }

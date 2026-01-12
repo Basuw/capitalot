@@ -115,9 +115,11 @@
                   ({{ formatPercent(stock.gainLossPercentage) }}%)
                 </td>
                 <td>
-                  <button @click="removeStockConfirm(stock)" class="btn-icon-modern delete" title="Remove">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                  </button>
+                  <div class="action-buttons">
+                    <button @click="openActionModal(stock)" class="btn-icon-modern delete" title="Remove/Sell">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -205,6 +207,34 @@
           </form>
         </Modal>
 
+        <Modal :show="showActionModal" title="Remove or Sell Stock?" @close="closeActionModal">
+          <div v-if="selectedStockForAction" class="action-modal-content">
+            <div class="selected-stock-info">
+              <h4>{{ selectedStockForAction.stock.symbol }} - {{ selectedStockForAction.stock.name }}</h4>
+              <p>Quantity: {{ formatNumber(selectedStockForAction.quantity) }}</p>
+              <p>Purchase Price: ${{ formatNumber(selectedStockForAction.purchasePrice) }}</p>
+              <p>Current Price: ${{ formatNumber(selectedStockForAction.currentPrice) }}</p>
+            </div>
+
+            <div class="action-choices">
+              <button @click="confirmDelete" class="btn-delete">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                Delete
+                <span class="action-description">Remove without tracking sale</span>
+              </button>
+              <button @click="openSellModal" class="btn-sell">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><polyline points="17 18 12 23 7 18"></polyline></svg>
+                Sell
+                <span class="action-description">Record sale with price and date</span>
+              </button>
+            </div>
+
+            <div class="form-actions">
+              <button type="button" @click="closeActionModal" class="btn-secondary">Cancel</button>
+            </div>
+          </div>
+        </Modal>
+
         <Modal :show="showSellStockModal" title="Sell Stock" @close="closeSellStockModal">
           <form @submit.prevent="sellStock">
             <div v-if="selectedStockToSell" class="selected-stock-info">
@@ -270,13 +300,8 @@
             </div>
 
             <div class="form-group">
-              <label for="portfolioIcon">Icon</label>
-              <input
-                id="portfolioIcon"
-                v-model="editForm.icon"
-                type="text"
-                placeholder="📊"
-              />
+              <label>Icon</label>
+              <IconPicker v-model="editForm.icon" />
             </div>
 
             <div class="form-group">
@@ -308,6 +333,7 @@ import { useRoute } from 'vue-router'
 import Navbar from '../components/Navbar.vue'
 import Modal from '../components/Modal.vue'
 import PerformanceChart from '../components/PerformanceChart.vue'
+import IconPicker from '../components/IconPicker.vue'
 import { usePortfolioStore } from '../stores/portfolio'
 import api from '../services/api'
 
@@ -317,11 +343,13 @@ const portfolioStore = usePortfolioStore()
 const showAddStockModal = ref(false)
 const showSellStockModal = ref(false)
 const showEditModal = ref(false)
+const showActionModal = ref(false)
 const showChart = ref(false)
 const searchQuery = ref('')
 const searchResults = ref([])
 const selectedStock = ref(null)
 const selectedStockToSell = ref(null)
+const selectedStockForAction = ref(null)
 const performanceStats = ref(null)
 const selectedRange = ref('1M')
 const timeRanges = ['1D', '1W', '1M', '3M', '6M', '1Y', 'ALL']
@@ -418,9 +446,43 @@ async function addStock() {
       purchaseDate: new Date(stockForm.value.purchaseDate).toISOString()
     })
     closeAddStockModal()
+    await portfolioStore.fetchPortfolioById(route.params.id)
+    await fetchPerformance()
   } catch (error) {
     console.error('Failed to add stock:', error)
   }
+}
+
+function openActionModal(stock) {
+  selectedStockForAction.value = stock
+  showActionModal.value = true
+}
+
+function closeActionModal() {
+  showActionModal.value = false
+  selectedStockForAction.value = null
+}
+
+async function confirmDelete() {
+  if (!selectedStockForAction.value) return
+  
+  if (confirm('Are you sure you want to delete this stock? This action cannot be undone.')) {
+    try {
+      await api.delete(`/portfolios/stocks/${selectedStockForAction.value.id}`)
+      await portfolioStore.fetchPortfolioById(route.params.id)
+      await fetchPerformance()
+      closeActionModal()
+    } catch (error) {
+      console.error('Failed to delete stock:', error)
+    }
+  }
+}
+
+function openSellModal() {
+  selectedStockToSell.value = selectedStockForAction.value
+  sellForm.value.salePrice = selectedStockForAction.value.currentPrice || 0
+  closeActionModal()
+  showSellStockModal.value = true
 }
 
 async function removeStockConfirm(stock) {
@@ -438,6 +500,7 @@ async function sellStock() {
       saleDate: new Date(sellForm.value.saleDate).toISOString()
     })
     await portfolioStore.fetchPortfolioById(route.params.id)
+    await fetchPerformance()
     closeSellStockModal()
   } catch (error) {
     console.error('Failed to sell stock:', error)
@@ -760,7 +823,8 @@ label {
 }
 
 input,
-select {
+select,
+textarea {
   width: 100%;
   padding: 0.75rem;
   border: 2px solid #e0e0e0;
@@ -769,10 +833,12 @@ select {
   font-family: inherit;
   transition: border-color 0.3s;
   box-sizing: border-box;
+  resize: vertical;
 }
 
 input:focus,
-select:focus {
+select:focus,
+textarea:focus {
   outline: none;
   border-color: #667eea;
 }
@@ -872,4 +938,77 @@ select:focus {
   color: #666;
   font-size: 0.9rem;
 }
+
+.action-modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.action-choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.btn-delete,
+.btn-sell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.btn-delete {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  color: #dc2626;
+  border-color: #fca5a5;
+}
+
+.btn-delete:hover {
+  background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%);
+  border-color: #dc2626;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+}
+
+.btn-sell {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  color: #2563eb;
+  border-color: #93c5fd;
+}
+
+.btn-sell:hover {
+  background: linear-gradient(135deg, #bfdbfe 0%, #93c5fd 100%);
+  border-color: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.btn-delete svg,
+.btn-sell svg {
+  flex-shrink: 0;
+}
+
+.action-description {
+  font-size: 0.75rem;
+  font-weight: 400;
+  opacity: 0.8;
+  text-align: center;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
 </style>

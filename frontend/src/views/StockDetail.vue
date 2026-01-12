@@ -102,36 +102,98 @@
           </div>
         </div>
       </div>
+      
+      <!-- Advanced Metrics Section -->
+      <div v-if="metrics && preferencesStore.preferences.showDetailedMetrics" class="metrics-section">
+        <h3>Advanced Metrics</h3>
+        <div class="metrics-grid">
+          
+          <!-- Annualized Return -->
+          <div v-if="preferencesStore.preferences.showAnnualizedReturn && metrics.annualizedReturn !== null" class="metric-card">
+            <div class="metric-header">
+              <span class="metric-icon">📈</span>
+              <span class="metric-label">Annualized Return</span>
+            </div>
+            <div :class="['metric-value', metrics.annualizedReturn >= 0 ? 'positive' : 'negative']">
+              {{ metrics.annualizedReturn >= 0 ? '+' : '' }}{{ (metrics.annualizedReturn * 100).toFixed(2) }}%
+            </div>
+            <div class="metric-description">Projected annual return rate</div>
+          </div>
 
-      <div v-if="stockInfo?.description" class="description-section">
-        <h3>About {{ stockInfo.name }}</h3>
-        <p>{{ stockInfo.description }}</p>
-      </div>
-    </div>
+          <!-- Benchmark Comparison -->
+          <div v-if="preferencesStore.preferences.showBenchmarkComparison && metrics.benchmarkComparison" class="metric-card">
+            <div class="metric-header">
+              <span class="metric-icon">⚖️</span>
+              <span class="metric-label">vs {{ metrics.benchmarkComparison.benchmarkSymbol }}</span>
+            </div>
+            <div class="benchmark-details">
+              <div class="benchmark-row">
+                <span class="benchmark-label">{{ symbol }}:</span>
+                <span :class="['benchmark-value', metrics.percentChange >= 0 ? 'positive' : 'negative']">
+                  {{ metrics.percentChange >= 0 ? '+' : '' }}{{ metrics.percentChange.toFixed(2) }}%
+                </span>
+              </div>
+              <div class="benchmark-row">
+                <span class="benchmark-label">{{ metrics.benchmarkComparison.benchmarkSymbol }}:</span>
+                <span :class="['benchmark-value', metrics.benchmarkComparison.benchmarkPercentChange >= 0 ? 'positive' : 'negative']">
+                  {{ metrics.benchmarkComparison.benchmarkPercentChange >= 0 ? '+' : '' }}{{ metrics.benchmarkComparison.benchmarkPercentChange.toFixed(2) }}%
+                </span>
+              </div>
+              <div class="benchmark-row difference">
+                <span class="benchmark-label">Difference:</span>
+                <span :class="['benchmark-value', metrics.benchmarkComparison.outperformance >= 0 ? 'positive' : 'negative']">
+                  {{ metrics.benchmarkComparison.outperformance >= 0 ? '+' : '' }}{{ metrics.benchmarkComparison.outperformance.toFixed(2) }}%
+                </span>
+              </div>
+            </div>
+          </div>
 
-    <div v-if="loading" class="loading">Loading chart data...</div>
-    <div v-else-if="error" class="error">{{ error }}</div>
-    <div v-else-if="priceHistory.length > 0" class="chart-section">
-      <div class="section-header">
-        <h2>Price History</h2>
-        <div class="time-selector">
-          <button 
-            v-for="period in periods" 
-            :key="period.value"
-            @click="selectedPeriod = period.value"
-            :class="['period-btn', { active: selectedPeriod === period.value }]"
-          >
-            {{ period.label }}
-          </button>
+          <!-- Best Day -->
+          <div v-if="preferencesStore.preferences.showBestWorstDay && metrics.bestDay" class="metric-card">
+            <div class="metric-header">
+              <span class="metric-icon">🎯</span>
+              <span class="metric-label">Best Day</span>
+            </div>
+            <div class="metric-value positive">
+              +{{ (metrics.bestDay.percentChange * 100).toFixed(2) }}%
+            </div>
+            <div class="metric-description">
+              {{ new Date(metrics.bestDay.date).toLocaleDateString() }}
+              <br/>
+              ${{ metrics.bestDay.price.toFixed(2) }} (+${{ metrics.bestDay.priceChange.toFixed(2) }})
+            </div>
+          </div>
+
+          <!-- Worst Day -->
+          <div v-if="preferencesStore.preferences.showBestWorstDay && metrics.worstDay" class="metric-card">
+            <div class="metric-header">
+              <span class="metric-icon">⚠️</span>
+              <span class="metric-label">Worst Day</span>
+            </div>
+            <div class="metric-value negative">
+              {{ (metrics.worstDay.percentChange * 100).toFixed(2) }}%
+            </div>
+            <div class="metric-description">
+              {{ new Date(metrics.worstDay.date).toLocaleDateString() }}
+              <br/>
+              ${{ metrics.worstDay.price.toFixed(2) }} (${{ metrics.worstDay.priceChange.toFixed(2) }})
+            </div>
+          </div>
+
         </div>
       </div>
-      <PerformanceChart 
-        :data="priceHistory" 
-        label="Price" 
-        :color="priceChangeColor"
-      />
+
+      <div v-if="priceHistory.length > 0">
+        <PerformanceChart 
+          :data="priceHistory" 
+          label="Price" 
+          :color="priceChangeColor"
+          :showStartPriceLine="preferencesStore.preferences.showStartPriceLine"
+          :startPrice="priceHistory[0].price"
+        />
+      </div>
+      <div v-else class="no-data">No price history available</div>
     </div>
-    <div v-else class="no-data">No price history available</div>
 
     <div class="news-section">
       <h2>Latest News</h2>
@@ -147,13 +209,16 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
 import PerformanceChart from '../components/PerformanceChart.vue'
+import { usePreferencesStore } from '../stores/preferences'
 
 const route = useRoute()
 const router = useRouter()
 const symbol = route.params.symbol
+const preferencesStore = usePreferencesStore()
 
 const stockInfo = ref(null)
 const priceHistory = ref([])
+const metrics = ref(null)
 const loading = ref(true)
 const refreshing = ref(false)
 const error = ref(null)
@@ -181,18 +246,46 @@ const priceChangeColor = computed(() => {
   return lastPrice >= firstPrice ? '#10b981' : '#ef4444'
 })
 
+const periodPerformance = computed(() => {
+  if (priceHistory.value.length < 2) return null
+  
+  const firstPrice = priceHistory.value[0].price
+  const lastPrice = priceHistory.value[priceHistory.value.length - 1].price
+  const priceChange = lastPrice - firstPrice
+  const percentChange = ((priceChange / firstPrice) * 100).toFixed(2)
+  
+  return {
+    firstPrice,
+    lastPrice,
+    priceChange,
+    percentChange,
+    isPositive: priceChange >= 0
+  }
+})
+
 async function loadStockData() {
   try {
     loading.value = true
     error.value = null
 
-    const [infoResponse, historyResponse] = await Promise.all([
+    const requests = [
       api.get(`/stocks/${symbol}`),
       api.get(`/stocks/${symbol}/history?period=${selectedPeriod.value}`)
-    ])
+    ]
 
-    stockInfo.value = infoResponse.data
-    priceHistory.value = historyResponse.data
+    // Load metrics if any advanced feature is enabled
+    const prefs = preferencesStore.preferences
+    if (prefs.showAnnualizedReturn || prefs.showBenchmarkComparison || prefs.showBestWorstDay || prefs.showDetailedMetrics) {
+      const benchmarkParam = prefs.benchmarkSymbol || 'SPY'
+      requests.push(api.get(`/stocks/${symbol}/metrics?period=${selectedPeriod.value}&benchmark=${benchmarkParam}`))
+    }
+
+    const responses = await Promise.all(requests)
+    stockInfo.value = responses[0].data
+    priceHistory.value = responses[1].data
+    if (responses.length > 2) {
+      metrics.value = responses[2].data
+    }
   } catch (err) {
     console.error('Error loading stock data:', err)
     error.value = 'Failed to load stock data'
@@ -224,6 +317,19 @@ function formatVolume(volume) {
   return volume.toLocaleString()
 }
 
+function getPeriodLabel(period) {
+  const labels = {
+    '1D': '1 jour',
+    '1W': '1 semaine',
+    '1M': '1 mois',
+    '3M': '3 mois',
+    '6M': '6 mois',
+    '1Y': '1 an',
+    '5Y': '5 ans'
+  }
+  return labels[period] || period
+}
+
 async function refreshData() {
   refreshing.value = true
   try {
@@ -238,7 +344,9 @@ watch(selectedPeriod, () => {
 })
 
 onMounted(() => {
-  loadStockData()
+  preferencesStore.loadPreferences().then(() => {
+    loadStockData()
+  })
 })
 </script>
 
@@ -482,16 +590,68 @@ onMounted(() => {
 .section-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 1.5rem;
   flex-wrap: wrap;
   gap: 1rem;
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .chart-section h2 {
   font-size: 1.25rem;
   margin: 0;
   color: #1e1e2e;
+}
+
+.period-performance {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid transparent;
+}
+
+.period-performance .performance-label {
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.performance-value {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.performance-value svg {
+  flex-shrink: 0;
+}
+
+.performance-value.positive {
+  color: #10b981;
+}
+
+.performance-value.negative {
+  color: #ef4444;
+}
+
+.performance-value.positive + .period-performance {
+  border-left-color: #10b981;
+}
+
+.performance-detail {
+  font-size: 0.875rem;
+  font-weight: 500;
+  opacity: 0.8;
 }
 
 .time-selector {
@@ -512,6 +672,11 @@ onMounted(() => {
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 60px;
 }
 
 .period-btn:hover {
@@ -522,6 +687,20 @@ onMounted(() => {
 .period-btn.active {
   background: #667eea;
   color: white;
+}
+
+.period-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+.period-badge.positive {
+  color: #d1fae5;
+}
+
+.period-badge.negative {
+  color: #fecaca;
 }
 
 .news-section {
@@ -555,4 +734,123 @@ onMounted(() => {
 .error {
   color: #ef4444;
 }
+
+.metrics-section {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  margin-bottom: 1.5rem;
+}
+
+.metrics-section h3 {
+  margin: 0 0 1rem 0;
+  color: #1e1e2e;
+  font-size: 1.1rem;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.metric-card {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  padding: 1.25rem;
+  border-radius: 10px;
+  border: 1px solid rgba(102, 126, 234, 0.1);
+  transition: all 0.3s;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.metric-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.metric-icon {
+  font-size: 1.25rem;
+}
+
+.metric-label {
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metric-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.metric-value.positive {
+  color: #10b981;
+}
+
+.metric-value.negative {
+  color: #ef4444;
+}
+
+.metric-description {
+  font-size: 0.8rem;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.benchmark-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.benchmark-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.benchmark-row:last-child {
+  border-bottom: none;
+}
+
+.benchmark-row.difference {
+  padding-top: 0.75rem;
+  font-weight: 700;
+  background: rgba(102, 126, 234, 0.05);
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin-top: 0.25rem;
+}
+
+.benchmark-label {
+  font-size: 0.875rem;
+  color: #555;
+  font-weight: 500;
+}
+
+.benchmark-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.benchmark-value.positive {
+  color: #10b981;
+}
+
+.benchmark-value.negative {
+  color: #ef4444;
+}
+
 </style>

@@ -86,6 +86,16 @@
             <IconPicker v-model="form.icon" />
           </div>
 
+          <div class="form-group">
+            <label for="link">Link (optional)</label>
+            <input
+              id="link"
+              v-model="form.link"
+              type="url"
+              placeholder="https://example.com"
+            />
+          </div>
+
           <div class="form-actions">
             <button type="button" @click="closeModal" class="btn-secondary">Cancel</button>
             <button type="submit" class="btn-primary" :disabled="portfolioStore.loading">
@@ -112,7 +122,8 @@ const editingPortfolio = ref(null)
 const form = ref({
   name: '',
   description: '',
-  icon: '💼'
+  icon: '💼',
+  link: ''
 })
 
 onMounted(() => {
@@ -124,7 +135,8 @@ function editPortfolio(portfolio) {
   form.value = {
     name: portfolio.name,
     description: portfolio.description || '',
-    icon: portfolio.icon || '💼'
+    icon: portfolio.icon || '💼',
+    link: portfolio.link || ''
   }
   showCreateModal.value = true
 }
@@ -158,7 +170,8 @@ function closeModal() {
   form.value = {
     name: '',
     description: '',
-    icon: '💼'
+    icon: '💼',
+    link: ''
   }
 }
 </script>

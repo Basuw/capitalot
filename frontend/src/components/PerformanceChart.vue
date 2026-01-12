@@ -26,6 +26,7 @@ import {
   Filler
 } from 'chart.js'
 import zoomPlugin from 'chartjs-plugin-zoom'
+import annotationPlugin from 'chartjs-plugin-annotation'
 
 ChartJS.register(
   CategoryScale,
@@ -36,7 +37,8 @@ ChartJS.register(
   Tooltip,
   Legend,
   Filler,
-  zoomPlugin
+  zoomPlugin,
+  annotationPlugin
 )
 
 const props = defineProps({
@@ -55,6 +57,14 @@ const props = defineProps({
   selectedRange: {
     type: String,
     default: 'ALL'
+  },
+  showStartPriceLine: {
+    type: Boolean,
+    default: false
+  },
+  startPrice: {
+    type: Number,
+    default: null
   }
 })
 
@@ -116,6 +126,30 @@ const chartOptions = {
         }
       }
     },
+    annotation: props.showStartPriceLine && props.startPrice ? {
+      annotations: {
+        startLine: {
+          type: 'line',
+          yMin: props.startPrice,
+          yMax: props.startPrice,
+          borderColor: '#f59e0b',
+          borderWidth: 2,
+          borderDash: [5, 5],
+          label: {
+            display: true,
+            content: `Start: $${props.startPrice.toFixed(2)}`,
+            position: 'end',
+            backgroundColor: '#f59e0b',
+            color: 'white',
+            font: {
+              size: 11,
+              weight: 'bold'
+            },
+            padding: 4
+          }
+        }
+      }
+    } : {},
     zoom: {
       zoom: {
         wheel: {
