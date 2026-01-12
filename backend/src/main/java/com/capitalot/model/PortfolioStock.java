@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "portfolio_stocks")
@@ -26,6 +28,11 @@ public class PortfolioStock {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "stock_id", nullable = false)
     private Stock stock;
+    
+    @OneToMany(mappedBy = "portfolioStock", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnoreProperties({"portfolioStock"})
+    @Builder.Default
+    private List<Purchase> purchases = new ArrayList<>();
     
     @Column(nullable = false, precision = 19, scale = 4)
     private BigDecimal quantity;

@@ -61,4 +61,17 @@ public class StockController {
             @RequestParam(required = false, defaultValue = "SPY") String benchmark) {
         return ResponseEntity.ok(stockMetricsService.calculateMetrics(symbol, period, benchmark));
     }
+    
+    @GetMapping("/{symbol}/historical-price")
+    public ResponseEntity<?> getHistoricalPrice(
+            @PathVariable String symbol,
+            @RequestParam String date) {
+        try {
+            java.time.LocalDateTime dateTime = java.time.LocalDateTime.parse(date);
+            java.math.BigDecimal price = stockPriceService.getHistoricalPrice(symbol, dateTime);
+            return ResponseEntity.ok(java.util.Map.of("price", price));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", e.getMessage()));
+        }
+    }
 }

@@ -96,9 +96,9 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="stock in stocks" :key="stock.id">
+              <tr v-for="stock in stocks" :key="stock.id" @click="openPurchaseHistory(stock)" class="clickable-row">
                 <td class="symbol">
-                  <router-link :to="`/stocks/${stock.stock.symbol}`" class="stock-link">
+                  <router-link :to="`/stocks/${stock.stock.symbol}`" class="stock-link" @click.stop>
                     {{ stock.stock.symbol }}
                   </router-link>
                 </td>
@@ -116,7 +116,7 @@
                 </td>
                 <td>
                   <div class="action-buttons">
-                    <button @click="openActionModal(stock)" class="btn-icon-modern delete" title="Remove/Sell">
+                    <button @click.stop="openActionModal(stock)" class="btn-icon-modern delete" title="Remove/Sell">
                       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                     </button>
                   </div>
@@ -176,16 +176,27 @@
             </div>
 
             <div class="form-group">
-              <label for="purchasePrice">Purchase Price</label>
-              <input
-                id="purchasePrice"
-                v-model.number="stockForm.purchasePrice"
-                type="number"
-                step="0.01"
-                min="0"
-                required
-                placeholder="0.00"
-              />
+              <label>Price Option</label>
+              <div class="radio-group">
+                <label class="radio-option">
+                  <input
+                    type="radio"
+                    v-model="priceOption"
+                    value="manual"
+                    @change="onPriceOptionChange"
+                  />
+                  <span>Enter price manually</span>
+                </label>
+                <label class="radio-option">
+                  <input
+                    type="radio"
+                    v-model="priceOption"
+                    value="date"
+                    @change="onPriceOptionChange"
+                  />
+                  <span>Get price by purchase date</span>
+                </label>
+              </div>
             </div>
 
             <div class="form-group">
@@ -195,7 +206,29 @@
                 v-model="stockForm.purchaseDate"
                 type="datetime-local"
                 required
+                @change="onPurchaseDateChange"
               />
+            </div>
+
+            <div class="form-group">
+              <label for="purchasePrice">Purchase Price</label>
+              <input
+                id="purchasePrice"
+                v-model.number="stockForm.purchasePrice"
+                type="number"
+                step="0.01"
+                min="0"
+                required
+                placeholder="0.00"
+                :disabled="priceOption === 'date'"
+                :class="{ 'loading-price': loadingHistoricalPrice }"
+              />
+              <small v-if="priceOption === 'date'" class="helper-text">
+                Price will be fetched automatically based on purchase date
+              </small>
+              <small v-if="loadingHistoricalPrice" class="helper-text loading">
+                Loading historical price...
+              </small>
             </div>
 
             <div class="form-actions">
@@ -322,6 +355,73 @@
             </div>
           </form>
         </Modal>
+
+        <Modal :show="showPurchaseHistoryModal" title="Purchase History" @close="closePurchaseHistoryModal">
+          <div v-if="selectedStockForHistory" class="purchase-history-content">
+            <div class="stock-summary">
+              <h4>{{ selectedStockForHistory.stock.symbol }} - {{ selectedStockForHistory.stock.name }}</h4>
+              <div class="summary-stats">
+                <div class="summary-item">
+                  <span class="summary-label">Total Shares:</span>
+                  <span class="summary-value">{{ formatNumber(selectedStockForHistory.quantity) }}</span>
+                </div>
+                <div class="summary-item">
+                  <span class="summary-label">Avg. Purchase Price:</span>
+                  <span class="summary-value">${{ formatNumber(selectedStockForHistory.purchasePrice) }}</span>
+                </div>
+                <div class="summary-item">
+                  <span class="summary-label">Current Price:</span>
+                  <span class="summary-value">${{ formatNumber(selectedStockForHistory.currentPrice) }}</span>
+                </div>
+                <div class="summary-item">
+                  <span class="summary-label">Total Gain/Loss:</span>
+                  <span class="summary-value" :class="(selectedStockForHistory.gainLoss || 0) >= 0 ? 'positive' : 'negative'">
+                    ${{ formatNumber(selectedStockForHistory.gainLoss) }} ({{ formatPercent(selectedStockForHistory.gainLossPercentage) }}%)
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="purchaseHistory.length" class="purchases-table-container">
+              <h5>Individual Purchases</h5>
+              <table class="purchases-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Quantity</th>
+                    <th>Purchase Price</th>
+                    <th>Purchase Value</th>
+                    <th>Current Value</th>
+                    <th>Gain/Loss</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="purchase in purchaseHistory" :key="purchase.id">
+                    <td>{{ formatDateTime(purchase.purchaseDate) }}</td>
+                    <td>{{ formatNumber(purchase.quantity) }}</td>
+                    <td>${{ formatNumber(purchase.purchasePrice) }}</td>
+                    <td>${{ formatNumber(purchase.purchasePrice * purchase.quantity) }}</td>
+                    <td>${{ formatNumber(purchase.currentValue) }}</td>
+                    <td :class="(purchase.gainLoss || 0) >= 0 ? 'positive' : 'negative'">
+                      ${{ formatNumber(purchase.gainLoss) }}<br>
+                      <small>({{ formatPercent(purchase.gainLossPercentage) }}%)</small>
+                    </td>
+                    <td>
+                      <button @click="deletePurchase(purchase.id)" class="btn-delete-purchase-mini" title="Delete purchase">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div v-else class="no-purchases">
+              <p>No individual purchase records found.</p>
+            </div>
+          </div>
+        </Modal>
       </div>
     </div>
   </div>
@@ -344,20 +444,26 @@ const showAddStockModal = ref(false)
 const showSellStockModal = ref(false)
 const showEditModal = ref(false)
 const showActionModal = ref(false)
+const showPurchaseHistoryModal = ref(false)
 const showChart = ref(false)
 const searchQuery = ref('')
 const searchResults = ref([])
 const selectedStock = ref(null)
 const selectedStockToSell = ref(null)
 const selectedStockForAction = ref(null)
+const selectedStockForHistory = ref(null)
+const purchaseHistory = ref([])
 const performanceStats = ref(null)
 const selectedRange = ref('1M')
 const timeRanges = ['1D', '1W', '1M', '3M', '6M', '1Y', 'ALL']
+const priceOption = ref('manual')
+const loadingHistoricalPrice = ref(false)
 const stockForm = ref({
   symbol: '',
   quantity: 0,
   purchasePrice: 0,
-  purchaseDate: new Date().toISOString().slice(0, 16)
+  purchaseDate: new Date().toISOString().slice(0, 16),
+  useMarketPrice: false
 })
 const sellForm = ref({
   salePrice: 0,
@@ -430,20 +536,58 @@ async function searchStocks() {
 function selectStock(stock) {
   selectedStock.value = stock
   stockForm.value.symbol = stock.symbol
-  stockForm.value.purchasePrice = stock.currentPrice || 0
+  if (priceOption.value === 'manual') {
+    stockForm.value.purchasePrice = stock.currentPrice || 0
+  }
   searchQuery.value = `${stock.symbol} - ${stock.name}`
   searchResults.value = []
+}
+
+function onPriceOptionChange() {
+  if (priceOption.value === 'date' && selectedStock.value) {
+    fetchHistoricalPrice()
+  } else if (priceOption.value === 'manual' && selectedStock.value) {
+    stockForm.value.purchasePrice = selectedStock.value.currentPrice || 0
+  }
+}
+
+async function onPurchaseDateChange() {
+  if (priceOption.value === 'date' && selectedStock.value) {
+    await fetchHistoricalPrice()
+  }
+}
+
+async function fetchHistoricalPrice() {
+  if (!selectedStock.value || !stockForm.value.purchaseDate) return
+  
+  loadingHistoricalPrice.value = true
+  try {
+    // Convert datetime-local to ISO string for API
+    const date = new Date(stockForm.value.purchaseDate).toISOString()
+    const response = await api.get(`/stocks/${selectedStock.value.symbol}/historical-price`, {
+      params: { date }
+    })
+    stockForm.value.purchasePrice = response.data.price || 0
+    console.log(`Fetched historical price for ${stockForm.value.purchaseDate}: $${response.data.price}`)
+  } catch (error) {
+    console.error('Failed to fetch historical price:', error)
+    // Fallback to current price if historical price fails
+    stockForm.value.purchasePrice = selectedStock.value.currentPrice || 0
+  } finally {
+    loadingHistoricalPrice.value = false
+  }
 }
 
 async function addStock() {
   if (!selectedStock.value) return
   
   try {
-    await portfolioStore.addStock(route.params.id, {
+    await api.post(`/purchases/portfolio/${route.params.id}`, {
       symbol: selectedStock.value.symbol,
       quantity: stockForm.value.quantity,
-      purchasePrice: stockForm.value.purchasePrice,
-      purchaseDate: new Date(stockForm.value.purchaseDate).toISOString()
+      purchasePrice: priceOption.value === 'manual' ? stockForm.value.purchasePrice : null,
+      purchaseDate: new Date(stockForm.value.purchaseDate).toISOString(),
+      useMarketPrice: priceOption.value === 'date'
     })
     closeAddStockModal()
     await portfolioStore.fetchPortfolioById(route.params.id)
@@ -536,6 +680,60 @@ function formatNumber(num) {
 function formatPercent(num) {
   if (num === null || num === undefined || isNaN(num)) return '0.00'
   return Number(num).toFixed(2)
+}
+
+function formatDateTime(dateString) {
+  if (!dateString) return 'N/A'
+  const date = new Date(dateString)
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+async function openPurchaseHistory(portfolioStock) {
+  selectedStockForHistory.value = portfolioStock
+  showPurchaseHistoryModal.value = true
+  await fetchPurchaseHistory(portfolioStock.id)
+}
+
+function closePurchaseHistoryModal() {
+  showPurchaseHistoryModal.value = false
+  selectedStockForHistory.value = null
+  purchaseHistory.value = []
+}
+
+async function fetchPurchaseHistory(portfolioStockId) {
+  try {
+    const response = await api.get(`/purchases/portfolio-stock/${portfolioStockId}`)
+    purchaseHistory.value = response.data
+  } catch (error) {
+    console.error('Failed to fetch purchase history:', error)
+  }
+}
+
+async function deletePurchase(purchaseId) {
+  if (!confirm('Are you sure you want to delete this purchase? This action cannot be undone.')) return
+  
+  try {
+    await api.delete(`/purchases/${purchaseId}`)
+    // Refresh purchase history
+    await fetchPurchaseHistory(selectedStockForHistory.value.id)
+    // Refresh portfolio data
+    await portfolioStore.fetchPortfolioById(route.params.id)
+    await fetchPerformance()
+    
+    // Close modal if no more purchases
+    if (purchaseHistory.value.length === 0) {
+      closePurchaseHistoryModal()
+    }
+  } catch (error) {
+    console.error('Failed to delete purchase:', error)
+    alert('Failed to delete purchase. Please try again.')
+  }
 }
 </script>
 
@@ -939,6 +1137,75 @@ textarea:focus {
   font-size: 0.9rem;
 }
 
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  padding: 0.75rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.radio-option:hover {
+  border-color: #667eea;
+  background: #f7fafc;
+}
+
+.radio-option input[type="radio"] {
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+}
+
+.radio-option input[type="radio"]:checked + span {
+  font-weight: 600;
+  color: #667eea;
+}
+
+.radio-option span {
+  flex: 1;
+  color: #333;
+}
+
+input:disabled {
+  background: #f7fafc;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.helper-text {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.helper-text.loading {
+  color: #667eea;
+  font-style: italic;
+}
+
+.loading-price {
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
 .action-modal-content {
   display: flex;
   flex-direction: column;
@@ -1009,6 +1276,223 @@ textarea:focus {
   display: flex;
   gap: 0.5rem;
   justify-content: center;
+}
+
+.clickable-row {
+  cursor: pointer;
+}
+
+.clickable-row:hover {
+  background: #f7fafc !important;
+}
+
+.purchase-history-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.stock-summary {
+  background: #f0f9ff;
+  padding: 1.5rem;
+  border-radius: 12px;
+  border-left: 4px solid #667eea;
+}
+
+.stock-summary h4 {
+  margin: 0 0 1rem 0;
+  color: #333;
+  font-size: 1.25rem;
+}
+
+.summary-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.summary-label {
+  font-size: 0.85rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.summary-value {
+  font-size: 1rem;
+  color: #333;
+  font-weight: 600;
+}
+
+.purchases-table-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.purchases-table-container h5 {
+  margin: 0;
+  color: #333;
+  font-size: 1.1rem;
+}
+
+.purchases-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.purchases-table thead {
+  background: #667eea;
+  color: white;
+}
+
+.purchases-table th {
+  padding: 0.875rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.9rem;
+  background: #667eea;
+  color: white;
+}
+
+.purchases-table td {
+  padding: 0.875rem;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 0.9rem;
+}
+
+.purchases-table tbody tr:hover {
+  background: #f7fafc;
+}
+
+.purchases-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.purchases-table td small {
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+.btn-delete-purchase-mini {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+  padding: 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-delete-purchase-mini:hover {
+  background: #fecaca;
+  border-color: #dc2626;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+}
+
+.purchases-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.purchases-list h5 {
+  margin: 0 0 0.5rem 0;
+  color: #333;
+  font-size: 1.1rem;
+}
+
+.purchase-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1.25rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  background: white;
+  transition: all 0.3s;
+}
+
+.purchase-item:hover {
+  border-color: #cbd5e0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.purchase-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.purchase-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.purchase-label {
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 500;
+  min-width: 120px;
+}
+
+.purchase-value {
+  font-size: 0.95rem;
+  color: #333;
+  font-weight: 600;
+  text-align: right;
+  flex: 1;
+}
+
+.btn-delete-purchase {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  color: #dc2626;
+  border: 2px solid #fca5a5;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-weight: 600;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.btn-delete-purchase:hover {
+  background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%);
+  border-color: #dc2626;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+}
+
+.no-purchases {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.no-purchases p {
+  margin: 0;
 }
 
 </style>

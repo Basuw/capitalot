@@ -250,4 +250,77 @@ public class StockPriceService {
             default -> 30;
         };
     }
+    
+    /**
+     * Get historical price for a specific date
+     * @param symbol Stock symbol
+     * @param date Target date
+     * @return Price at the specified date, or current price if not available
+     */
+    public BigDecimal getHistoricalPrice(String symbol, LocalDateTime date) {
+        log.info("Fetching historical price for {} at {}", symbol, date);
+        
+        // Try to get from Alpha Vantage daily time series
+        var dailyOpt = alphaVantageService.getDailyTimeSeries(symbol);
+        if (dailyOpt.isPresent()) {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+            String dateStr = date.toLocalDate().format(formatter);
+            
+            var timeSeries = dailyOpt.get().getTimeSeriesDaily();
+            if (timeSeries != null && timeSeries.containsKey(dateStr)) {
+                try {
+                    String closePrice = timeSeries.get(dateStr).getClose();
+                    BigDecimal price = new BigDecimal(closePrice);
+                    log.info("Found historical price for {} on {}: ${}", symbol, dateStr, price);
+                    return price;
+                } catch (Exception e) {
+                    log.warn("Failed to parse historical price for {} on {}", symbol, dateStr, e);
+                }
+            } else {
+                log.warn("No data found for {} on {}, trying nearby dates", symbol, dateStr);
+                // Try to find the closest previous date (in case of weekend/holiday)
+                for (int i = 1; i <= 7; i++) {
+                    String altDateStr = date.minusDays(i).toLocalDate().format(formatter);
+                    if (timeSeries != null && timeSeries.containsKey(altDateStr)) {
+                        try {
+                            String closePrice = timeSeries.get(altDateStr).getClose();
+                            BigDecimal price = new BigDecimal(closePrice);
+                            log.info("Found historical price for {} on {} (used {}): ${}", symbol, dateStr, altDateStr, price);
+                            return price;
+                        } catch (Exception e) {
+                            log.warn("Failed to parse historical price for {} on {}", symbol, altDateStr, e);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Fallback: check database
+        Stock stock = stockRepository.findBySymbol(symbol).orElse(null);
+        if (stock != null) {
+            List<StockPriceHistory> history = stockPriceHistoryRepository
+                .findByStockIdAndTimestampAfter(stock.getId(), date.minusDays(7));
+            
+            if (!history.isEmpty()) {
+                // Find closest price to the target date
+                StockPriceHistory closestPrice = history.stream()
+                    .min((a, b) -> {
+                        long diffA = Math.abs(java.time.Duration.between(date, a.getTimestamp()).toMinutes());
+                        long diffB = Math.abs(java.time.Duration.between(date, b.getTimestamp()).toMinutes());
+                        return Long.compare(diffA, diffB);
+                    })
+                    .orElse(null);
+                
+                if (closestPrice != null) {
+                    log.info("Found historical price from database for {} near {}: ${}", symbol, date, closestPrice.getPrice());
+                    return BigDecimal.valueOf(closestPrice.getPrice());
+                }
+            }
+        }
+        
+        // Last fallback: use current price
+        log.warn("Could not find historical price for {} on {}, using current price", symbol, date);
+        StockPriceResponse currentPriceResponse = getStockPrice(symbol);
+        return currentPriceResponse.getCurrentPrice();
+    }
 }

@@ -7,10 +7,13 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface PortfolioStockRepository extends JpaRepository<PortfolioStock, Long> {
     List<PortfolioStock> findByPortfolioId(Long portfolioId);
+    
+    Optional<PortfolioStock> findByPortfolioIdAndStockId(Long portfolioId, Long stockId);
     
     @Query("SELECT ps FROM PortfolioStock ps WHERE ps.portfolio.user.id = :userId")
     List<PortfolioStock> findByUserId(@Param("userId") Long userId);
@@ -23,3 +26,4 @@ public interface PortfolioStockRepository extends JpaRepository<PortfolioStock, 
         @Param("endDate") LocalDateTime endDate
     );
 }
+

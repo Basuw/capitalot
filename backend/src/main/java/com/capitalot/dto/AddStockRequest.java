@@ -26,4 +26,6 @@ public class AddStockRequest {
     private Double targetPrice;
     private Priority priority;
     private Set<String> tags;
+    private Boolean useMarketPrice; // true = prix actuel du marché, false = prix à la date spécifiée
 }
+
