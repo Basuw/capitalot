@@ -12,6 +12,8 @@ import java.util.Optional;
 public interface StockRepository extends JpaRepository<Stock, Long> {
     Optional<Stock> findBySymbol(String symbol);
     
+    boolean existsBySymbol(String symbol);
+    
     @Query("SELECT s FROM Stock s WHERE s.isPopular = true ORDER BY s.name")
     List<Stock> findPopularStocks();
     

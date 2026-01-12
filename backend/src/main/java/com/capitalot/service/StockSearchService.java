@@ -1,35 +1,77 @@
 package com.capitalot.service;
 
+import com.capitalot.dto.alphavantage.AlphaVantageSearchResponse;
 import com.capitalot.model.Stock;
 import com.capitalot.repository.StockRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class StockSearchService {
     
     private final StockRepository stockRepository;
+    private final StockEnrichmentService stockEnrichmentService;
+    private final AlphaVantageService alphaVantageService;
     private final Random random = new Random();
     
     public List<Stock> searchStocks(String query) {
+        List<Stock> stocks;
         if (query == null || query.trim().isEmpty()) {
-            return stockRepository.findPopularStocks();
+            stocks = stockRepository.findPopularStocks();
+        } else {
+            // D'abord chercher dans la base de données locale
+            stocks = stockRepository.searchStocks(query);
+            
+            // Si peu ou pas de résultats locaux, rechercher via Alpha Vantage API
+            if (stocks.size() < 3) {
+                log.info("Searching Alpha Vantage API for query: {}", query);
+                var searchResults = alphaVantageService.searchSymbol(query);
+                
+                if (searchResults.isPresent() && searchResults.get().getBestMatches() != null) {
+                    // Convertir les résultats de l'API en objets Stock
+                    List<Stock> apiStocks = searchResults.get().getBestMatches().stream()
+                            .filter(match -> "Equity".equalsIgnoreCase(match.getType()) || 
+                                           "ETF".equalsIgnoreCase(match.getType()))
+                            .map(this::convertSearchMatchToStock)
+                            .collect(Collectors.toList());
+                    
+                    // Sauvegarder les nouveaux stocks dans la base de données
+                    for (Stock apiStock : apiStocks) {
+                        if (!stockRepository.existsBySymbol(apiStock.getSymbol())) {
+                            stockRepository.save(apiStock);
+                            stocks.add(apiStock);
+                        }
+                    }
+                    
+                    log.info("Found {} stocks from Alpha Vantage API", apiStocks.size());
+                }
+            }
         }
-        return stockRepository.searchStocks(query);
+        
+        // Enrichir avec les vrais prix depuis Alpha Vantage
+        return stockEnrichmentService.enrichStocksWithRealPrices(stocks);
     }
     
     public List<Stock> getPopularStocks() {
-        return stockRepository.findPopularStocks();
+        List<Stock> stocks = stockRepository.findPopularStocks();
+        // Enrichir avec les vrais prix depuis Alpha Vantage
+        return stockEnrichmentService.enrichStocksWithRealPrices(stocks);
     }
     
     public Stock getStockBySymbol(String symbol) {
-        return stockRepository.findBySymbol(symbol.toUpperCase())
+        Stock stock = stockRepository.findBySymbol(symbol.toUpperCase())
             .orElseThrow(() -> new RuntimeException("Stock not found: " + symbol));
+        
+        // Enrichir avec le vrai prix depuis Alpha Vantage
+        return stockEnrichmentService.enrichStockWithRealPrice(stock);
     }
     
     public void initializePopularStocks() {
@@ -62,6 +104,7 @@ public class StockSearchService {
             .sector(sector)
             .industry(industry)
             .isPopular(isPopular)
+            .stockType(com.capitalot.model.StockType.STOCK)
             .description(description)
             .annualDividend(annualDividend)
             .risk(risk)
@@ -69,5 +112,27 @@ public class StockSearchService {
             .shortPercentage(shortPct)
             .marketScore(70.0 + random.nextDouble() * 30.0)
             .build();
+    }
+    
+    private Stock convertSearchMatchToStock(AlphaVantageSearchResponse.SearchMatch match) {
+        double longPct = 50.0 + random.nextDouble() * 40.0;
+        double shortPct = 100.0 - longPct;
+        
+        return Stock.builder()
+                .symbol(match.getSymbol())
+                .name(match.getName())
+                .exchange(match.getRegion())
+                .currency(match.getCurrency())
+                .sector("Unknown")
+                .industry("Unknown")
+                .isPopular(false)
+                .stockType(com.capitalot.model.StockType.STOCK)
+                .description(match.getName())
+                .annualDividend(0.0)
+                .risk(5.0)
+                .longPercentage(longPct)
+                .shortPercentage(shortPct)
+                .marketScore(70.0 + random.nextDouble() * 30.0)
+                .build();
     }
 }

@@ -10,13 +10,17 @@
           <input
             v-model="searchQuery"
             type="text"
-            placeholder="Rechercher des actions par symbole ou nom..."
+            placeholder="Rechercher par symbole (ex: AAPL) ou nom (ex: Apple)..."
             @input="handleSearch"
           />
           <div v-if="searching" class="search-status">
             <svg class="spinner" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>
           </div>
         </div>
+        <p class="search-hint">
+          💡 Recherchez par symbole boursier (AAPL, MSFT, TSLA...) ou par nom d'entreprise (Apple, Microsoft, Tesla...). 
+          Si l'action n'est pas dans notre base, nous la rechercherons automatiquement sur les marchés mondiaux.
+        </p>
       </div>
 
       <div class="filters-section">
@@ -48,7 +52,17 @@
       </div>
 
       <div v-if="paginatedResults.length" class="results-section">
-        <h2>{{ searchQuery ? `Résultats (${filteredResults.length})` : `Actions (${filteredResults.length})` }}</h2>
+        <div class="results-header">
+          <div>
+            <h2>{{ searchQuery ? `Résultats (${filteredResults.length})` : `Actions (${filteredResults.length})` }}</h2>
+            <p v-if="lastRefresh" class="last-refresh">Dernière mise à jour: {{ lastRefresh }}</p>
+          </div>
+          <button @click="refreshPrices" class="refresh-btn" :disabled="refreshing">
+            <svg v-if="!refreshing" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+            <svg v-else class="spinner" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>
+            {{ refreshing ? 'Rafraîchissement...' : 'Rafraîchir les prix' }}
+          </button>
+        </div>
         <div class="table-container">
           <table class="stocks-table">
             <thead>
@@ -135,7 +149,13 @@
 
       <div v-else-if="searchQuery && !searching" class="empty-state">
         <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>
-        <p>Aucune action trouvée pour "{{ searchQuery }}"</p>
+        <p class="empty-main">Aucune action trouvée pour "{{ searchQuery }}"</p>
+        <p class="empty-hint">Essayez de rechercher par :</p>
+        <ul class="empty-examples">
+          <li>Symbole boursier : AAPL, MSFT, GOOGL, TSLA...</li>
+          <li>Nom d'entreprise : Apple, Microsoft, Google, Tesla...</li>
+          <li>Variantes du nom : Facebook → Meta, Alphabet → Google</li>
+        </ul>
       </div>
 
       <div v-else-if="!searching && !filteredResults.length" class="loading-state">
@@ -148,7 +168,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import Navbar from '../components/Navbar.vue'
 import api from '../services/api'
@@ -158,6 +178,8 @@ const router = useRouter()
 const searchQuery = ref('')
 const searchResults = ref([])
 const searching = ref(false)
+const refreshing = ref(false)
+const lastRefresh = ref('')
 const selectedSector = ref('')
 const selectedIndustry = ref('')
 const selectedRisk = ref('')
@@ -167,6 +189,7 @@ const currentPage = ref(1)
 const itemsPerPage = 20
 
 let searchTimeout = null
+let autoRefreshInterval = null
 
 const uniqueSectors = computed(() => {
   const sectors = searchResults.value.map(s => s.sector).filter(Boolean)
@@ -234,6 +257,20 @@ watch([selectedSector, selectedIndustry, selectedRisk], () => {
 
 onMounted(async () => {
   await loadAllStocks()
+  
+  // Auto-refresh prices every 2 minutes
+  autoRefreshInterval = setInterval(async () => {
+    console.log('Auto-refreshing stock prices...')
+    if (!searching.value && !refreshing.value) {
+      await refreshPrices()
+    }
+  }, 120000) // 2 minutes
+})
+
+onUnmounted(() => {
+  if (autoRefreshInterval) {
+    clearInterval(autoRefreshInterval)
+  }
 })
 
 async function loadAllStocks() {
@@ -241,6 +278,7 @@ async function loadAllStocks() {
   try {
     const response = await api.get('/stocks/search')
     searchResults.value = response.data
+    updateLastRefresh()
   } catch (error) {
     console.error('Failed to load stocks:', error)
     searchResults.value = []
@@ -313,6 +351,30 @@ function getRiskClass(risk) {
   if (risk <= 6) return 'risk-medium'
   return 'risk-high'
 }
+
+async function refreshPrices() {
+  refreshing.value = true
+  try {
+    // Recharger tous les stocks pour obtenir les prix frais
+    if (searchQuery.value) {
+      const response = await api.get(`/stocks/search?query=${encodeURIComponent(searchQuery.value)}`)
+      searchResults.value = response.data
+    } else {
+      await loadAllStocks()
+    }
+    updateLastRefresh()
+  } catch (error) {
+    console.error('Failed to refresh prices:', error)
+  } finally {
+    refreshing.value = false
+  }
+}
+
+function updateLastRefresh() {
+  const now = new Date()
+  lastRefresh.value = now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+}
+
 </script>
 
 <style scoped>
@@ -327,9 +389,20 @@ function getRiskClass(risk) {
 }
 
 h1 {
-  margin: 0 0 2rem 0;
+  margin: 0 0 1rem 0;
   color: #333;
   font-size: 2.5rem;
+}
+
+.search-hint {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #f0f9ff;
+  border-left: 4px solid #667eea;
+  border-radius: 8px;
+  color: #1e40af;
+  font-size: 0.9rem;
+  line-height: 1.6;
 }
 
 h2 {
@@ -422,6 +495,55 @@ input[type="text"]:focus {
 
 .results-section {
   margin-top: 2rem;
+}
+
+.results-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.results-header h2 {
+  margin: 0;
+}
+
+.last-refresh {
+  font-size: 0.75rem;
+  color: #999;
+  margin: 0.25rem 0 0 0;
+  font-style: italic;
+}
+
+.refresh-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+.refresh-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.refresh-btn svg {
+  flex-shrink: 0;
 }
 
 .table-container {
@@ -574,9 +696,41 @@ input[type="text"]:focus {
   margin-bottom: 1rem;
 }
 
-.empty-state p {
+.empty-main {
   font-size: 1.1rem;
+  margin: 0 0 1.5rem 0;
+  font-weight: 600;
+  color: #333;
+}
+
+.empty-hint {
+  font-size: 0.95rem;
+  margin: 0 0 1rem 0;
+  color: #666;
+}
+
+.empty-examples {
+  list-style: none;
+  padding: 0;
   margin: 0;
+  text-align: left;
+  display: inline-block;
+  background: #f8f9fa;
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+}
+
+.empty-examples li {
+  padding: 0.5rem 0;
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.empty-examples li:before {
+  content: "→ ";
+  color: #667eea;
+  font-weight: bold;
+  margin-right: 0.5rem;
 }
 
 .loading-state {

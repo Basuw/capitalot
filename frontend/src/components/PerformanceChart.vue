@@ -1,5 +1,10 @@
 <template>
   <div class="chart-wrapper">
+    <div class="chart-controls">
+      <div class="chart-info">
+        <span class="info-text">💡 Zoom: Molette de souris | Déplacer: Maj + Glisser</span>
+      </div>
+    </div>
     <div class="chart-container">
       <Line :data="chartData" :options="chartOptions" />
     </div>
@@ -20,6 +25,7 @@ import {
   Legend,
   Filler
 } from 'chart.js'
+import zoomPlugin from 'chartjs-plugin-zoom'
 
 ChartJS.register(
   CategoryScale,
@@ -29,7 +35,8 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  Filler
+  Filler,
+  zoomPlugin
 )
 
 const props = defineProps({
@@ -108,6 +115,29 @@ const chartOptions = {
           return `${props.label}: $${context.parsed.y.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
         }
       }
+    },
+    zoom: {
+      zoom: {
+        wheel: {
+          enabled: true,
+          speed: 0.1
+        },
+        pinch: {
+          enabled: true
+        },
+        mode: 'x'
+      },
+      pan: {
+        enabled: true,
+        mode: 'x',
+        modifierKey: 'shift'
+      },
+      limits: {
+        x: {
+          min: 'original',
+          max: 'original'
+        }
+      }
     }
   },
   scales: {
@@ -142,8 +172,30 @@ const chartOptions = {
   width: 100%;
 }
 
+.chart-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.chart-info {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.info-text {
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
 .chart-container {
-  height: 300px;
+  height: 400px;
   width: 100%;
 }
 </style>

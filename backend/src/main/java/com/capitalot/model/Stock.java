@@ -66,6 +66,21 @@ public class Stock {
     @Transient
     private Double dailyChangePercentage;
     
+    @Transient
+    private Double openPrice;
+    
+    @Transient
+    private Double highPrice;
+    
+    @Transient
+    private Double lowPrice;
+    
+    @Transient
+    private Double previousClose;
+    
+    @Transient
+    private Long volume;
+    
     @ManyToMany
     @JoinTable(
         name = "stock_tags",
