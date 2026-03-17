@@ -43,54 +43,74 @@ public class StockPriceService {
             YahooFinanceChartResponse.Result result = response.getChart().getResult().get(0);
             
             try {
-                YahooFinanceChartResponse.Quote quote = result.getIndicators().getQuote().get(0);
-                List<Long> timestamps = result.getTimestamp();
+                YahooFinanceChartResponse.Meta meta = result.getMeta();
+                Double currentPrice = meta.getRegularMarketPrice();
+                Long marketTime = meta.getRegularMarketTime();
                 
-                if (quote.getClose() != null && !quote.getClose().isEmpty()) {
-                    int lastIndex = quote.getClose().size() - 1;
-                    while (lastIndex >= 0 && quote.getClose().get(lastIndex) == null) {
-                        lastIndex--;
-                    }
-                    
-                    if (lastIndex >= 0) {
-                        Double currentPrice = quote.getClose().get(lastIndex);
-                        Double openPrice = quote.getOpen() != null && quote.getOpen().size() > 0 
-                            ? quote.getOpen().get(0) 
-                            : currentPrice;
-                        Double highPrice = getMaxPrice(quote.getHigh());
-                        Double lowPrice = getMinPrice(quote.getLow());
-                        Double previousClose = result.getMeta().getPreviousClose() != null 
-                            ? result.getMeta().getPreviousClose() 
-                            : currentPrice;
-                        
-                        BigDecimal changePercent = BigDecimal.valueOf((currentPrice - previousClose) / previousClose * 100)
-                            .setScale(2, RoundingMode.HALF_UP);
-                        
-                        Long volume = quote.getVolume() != null && !quote.getVolume().isEmpty() 
-                            ? quote.getVolume().get(lastIndex) 
-                            : 0L;
-                        
-                        log.info("Successfully fetched real price for {}: ${}", symbol, currentPrice);
-                        
-                        return StockPriceResponse.builder()
-                            .symbol(symbol)
-                            .currentPrice(BigDecimal.valueOf(currentPrice))
-                            .openPrice(BigDecimal.valueOf(openPrice))
-                            .highPrice(BigDecimal.valueOf(highPrice))
-                            .lowPrice(BigDecimal.valueOf(lowPrice))
-                            .previousClose(BigDecimal.valueOf(previousClose))
-                            .changePercent(changePercent)
-                            .volume(volume != null ? volume : 0L)
-                            .currency(result.getMeta().getCurrency() != null ? result.getMeta().getCurrency() : "USD")
-                            .build();
+                if (currentPrice == null) {
+                    YahooFinanceChartResponse.Quote quote = result.getIndicators().getQuote().get(0);
+                    List<Double> closePrices = quote.getClose();
+                    if (closePrices != null && !closePrices.isEmpty()) {
+                        int lastIndex = closePrices.size() - 1;
+                        while (lastIndex >= 0 && closePrices.get(lastIndex) == null) {
+                            lastIndex--;
+                        }
+                        if (lastIndex >= 0) {
+                            currentPrice = closePrices.get(lastIndex);
+                            if (result.getTimestamp() != null && result.getTimestamp().size() > lastIndex) {
+                                marketTime = result.getTimestamp().get(lastIndex);
+                            }
+                        }
                     }
                 }
+                
+                if (currentPrice != null) {
+                    LocalDateTime dateTime = Instant.ofEpochSecond(marketTime != null ? marketTime : Instant.now().getEpochSecond())
+                        .atZone(ZoneId.systemDefault())
+                        .toLocalDateTime();
+                    
+                    log.info("[DEBUG] Fetched price for {}: ${} at date: {}", symbol, currentPrice, dateTime);
+                    
+                    Double previousClose = meta.getPreviousClose() != null ? meta.getPreviousClose() : currentPrice;
+                    BigDecimal changePercent = BigDecimal.valueOf((currentPrice - previousClose) / previousClose * 100)
+                        .setScale(2, RoundingMode.HALF_UP);
+                    
+                    return StockPriceResponse.builder()
+                        .symbol(symbol)
+                        .currentPrice(BigDecimal.valueOf(currentPrice))
+                        .previousClose(BigDecimal.valueOf(previousClose))
+                        .changePercent(changePercent)
+                        .currency(meta.getCurrency() != null ? meta.getCurrency() : "USD")
+                        .lastUpdated(dateTime)
+                        .build();
+                }
             } catch (Exception e) {
-                log.warn("Failed to parse Yahoo Finance response for {}, falling back to mock data", symbol, e);
+                log.warn("Failed to parse Yahoo Finance chart response for {}, trying quoteSummary", symbol, e);
             }
         }
         
-        log.info("Using mock data for symbol: {}", symbol);
+        // Fallback to Quote Summary for current price
+        var summaryOpt = yahooFinanceService.getQuoteSummary(symbol);
+        if (summaryOpt.isPresent()) {
+            var summary = summaryOpt.get();
+            if (summary.getQuoteSummary() != null && !summary.getQuoteSummary().getResult().isEmpty()) {
+                var financialData = summary.getQuoteSummary().getResult().get(0).getFinancialData();
+                if (financialData != null && financialData.getCurrentPrice() != null && financialData.getCurrentPrice().getRaw() != null) {
+                    Double currentPrice = financialData.getCurrentPrice().getRaw();
+                    log.info("[DEBUG] Fetched price for {} from quoteSummary: ${} at now: {}", symbol, currentPrice, LocalDateTime.now());
+                    
+                    return StockPriceResponse.builder()
+                        .symbol(symbol)
+                        .currentPrice(BigDecimal.valueOf(currentPrice))
+                        .previousClose(BigDecimal.valueOf(currentPrice)) // approximation
+                        .changePercent(BigDecimal.ZERO)
+                        .currency("USD")
+                        .build();
+                }
+            }
+        }
+        
+        log.warn("Using mock data for symbol: {} - Could not fetch real price", symbol);
         return generateMockPrice(symbol);
     }
     

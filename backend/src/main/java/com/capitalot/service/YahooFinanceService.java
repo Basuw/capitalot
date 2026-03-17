@@ -81,10 +81,11 @@ public class YahooFinanceService {
                     .queryParam("q", query)
                     .toUriString();
             
-            log.info("Searching Yahoo Finance for query: {}", query);
+            log.info("[DEBUG] Searching Yahoo Finance for query: {}", query);
             YahooFinanceSearchResponse response = restTemplate.getForObject(url, YahooFinanceSearchResponse.class);
             
             if (response != null && response.getQuotes() != null && !response.getQuotes().isEmpty()) {
+                log.info("[DEBUG] Found {} results for query: {}", response.getQuotes().size(), query);
                 return Optional.of(response);
             }
             

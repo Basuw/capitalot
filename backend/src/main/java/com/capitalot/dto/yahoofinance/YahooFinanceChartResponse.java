@@ -52,6 +52,9 @@ public class YahooFinanceChartResponse {
         @JsonProperty("regularMarketTime")
         private Long regularMarketTime;
         
+        @JsonProperty("regularMarketPrice")
+        private Double regularMarketPrice;
+        
         @JsonProperty("gmtoffset")
         private Integer gmtoffset;
         

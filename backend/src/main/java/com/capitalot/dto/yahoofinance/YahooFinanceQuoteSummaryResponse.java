@@ -54,6 +54,9 @@ public class YahooFinanceQuoteSummaryResponse {
     
     @Data
     public static class FinancialData {
+        @JsonProperty("currentPrice")
+        private ValueWrapper currentPrice;
+
         @JsonProperty("totalCash")
         private ValueWrapper totalCash;
         

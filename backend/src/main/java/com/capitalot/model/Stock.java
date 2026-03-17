@@ -80,6 +80,9 @@ public class Stock {
     
     @Transient
     private Long volume;
+
+    @Transient
+    private LocalDateTime lastPriceUpdate;
     
     @ManyToMany
     @JoinTable(
@@ -108,10 +111,7 @@ public class Stock {
     
     @PostLoad
     protected void calculateCurrentPrice() {
-        Random random = new Random(symbol.hashCode());
-        currentPrice = 50.0 + random.nextDouble() * 450.0;
-        
-        dailyChange = -10.0 + random.nextDouble() * 20.0;
-        dailyChangePercentage = (dailyChange / currentPrice) * 100.0;
+        // Mock pricing removed to prioritize real API data
+        // Values will be filled by StockEnrichmentService
     }
 }

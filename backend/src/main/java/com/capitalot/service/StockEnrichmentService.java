@@ -32,13 +32,14 @@ public class StockEnrichmentService {
             stock.setVolume(priceData.getVolume());
             stock.setDailyChange(priceData.getCurrentPrice().subtract(priceData.getPreviousClose()).doubleValue());
             stock.setDailyChangePercentage(priceData.getChangePercent().doubleValue());
+            stock.setLastPriceUpdate(priceData.getLastUpdated());
             
+            log.info("[DEBUG] Final enriched price for {}: ${} (Market Date: {})", stock.getSymbol(), stock.getCurrentPrice(), stock.getLastPriceUpdate());
+
             // Enrich with additional details from Yahoo if missing
             if ("Unknown".equals(stock.getSector()) || "Unknown".equals(stock.getIndustry()) || stock.getDescription() == null || stock.getDescription().equals(stock.getName())) {
                 enrichStockDetails(stock);
             }
-            
-            log.debug("Enriched stock {} with real price: ${}", stock.getSymbol(), stock.getCurrentPrice());
         } catch (Exception e) {
             log.warn("Failed to enrich stock {} with real price, using calculated values", stock.getSymbol(), e);
         }

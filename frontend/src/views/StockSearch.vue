@@ -111,7 +111,12 @@
                   <strong>{{ stock.symbol }}</strong>
                 </td>
                 <td>{{ stock.name }}</td>
-                <td class="right-align">{{ formatPrice(stock.currentPrice, preferencesStore.preferences.currency) }}</td>
+                <td class="right-align">
+                  {{ preferencesStore.formatPrice(stock.currentPrice) }}
+                  <div v-if="stock.lastPriceUpdate" class="last-update-time">
+                    {{ new Date(stock.lastPriceUpdate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }}
+                  </div>
+                </td>
                 <td class="right-align">
                   <span :class="getDailyChangeClass(stock.dailyChangePercentage)">
                     {{ formatChange(stock.dailyChange) }}
@@ -281,6 +286,12 @@ async function loadAllStocks() {
   try {
     const response = await api.get('/stocks/search')
     searchResults.value = response.data
+    console.log('[DEBUG] Loaded popular stocks with prices:', searchResults.value.map(s => ({
+      symbol: s.symbol,
+      price: s.currentPrice,
+      marketDate: s.lastPriceUpdate || 'N/A',
+      fetchDate: new Date().toLocaleString()
+    })))
     updateLastRefresh()
   } catch (error) {
     console.error('Failed to load stocks:', error)
@@ -305,6 +316,12 @@ function handleSearch() {
     try {
       const response = await api.get(`/stocks/search?query=${encodeURIComponent(searchQuery.value)}`)
       searchResults.value = response.data
+      console.log('[DEBUG] Search results with prices:', searchResults.value.map(s => ({
+        symbol: s.symbol,
+        price: s.currentPrice,
+        marketDate: s.lastPriceUpdate || 'N/A',
+        fetchDate: new Date().toLocaleString()
+      })))
       currentPage.value = 1
     } catch (error) {
       console.error('Search failed:', error)
@@ -619,6 +636,13 @@ input[type="text"]:focus {
   justify-content: center;
   color: white;
   flex-shrink: 0;
+}
+
+.last-update-time {
+  font-size: 0.7rem;
+  color: #999;
+  font-weight: normal;
+  margin-top: 2px;
 }
 
 .positive-change {
