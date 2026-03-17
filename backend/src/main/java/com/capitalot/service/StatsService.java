@@ -90,6 +90,10 @@ public class StatsService {
             .findByUserEmailAndTimestampAfter(email, startDate);
         
         if (history.isEmpty()) {
+            List<PortfolioStock> stocks = portfolioStockRepository.findByUserId(user.getId());
+            if (stocks.isEmpty()) {
+                return new ArrayList<>();
+            }
             return generateMockPerformanceHistory(user.getId(), period);
         }
         
@@ -155,33 +159,36 @@ public class StatsService {
         
         List<PortfolioStock> stocks = portfolioStockRepository.findByUserId(userId);
         
-        double baseValue = 0;
+        double currentValue = 0;
         for (PortfolioStock ps : stocks) {
             StockPriceResponse priceResponse = stockPriceService.getStockPrice(ps.getStock().getSymbol());
-            baseValue += priceResponse.getCurrentPrice().doubleValue() * ps.getQuantity().doubleValue();
+            currentValue += priceResponse.getCurrentPrice().doubleValue() * ps.getQuantity().doubleValue();
         }
         
-        if (baseValue == 0) {
-            baseValue = 10000 + random.nextDouble() * 40000;
+        double totalInvested = 0;
+        for (PortfolioStock ps : stocks) {
+            totalInvested += ps.getPurchasePrice().doubleValue() * ps.getQuantity().doubleValue();
+        }
+        
+        if (currentValue == 0 || totalInvested == 0) {
+            return new ArrayList<>();
         }
         
         int dataPoints = getDataPointsForPeriod(period);
         long totalMinutes = java.time.Duration.between(startDate, now).toMinutes();
         long intervalMinutes = Math.max(1, totalMinutes / dataPoints);
         
+        double startValue = totalInvested;
+        double endValue = currentValue;
+        double valueRange = endValue - startValue;
+        
         for (int i = 0; i < dataPoints; i++) {
             LocalDateTime timestamp = startDate.plusMinutes(intervalMinutes * i);
-            double variation = (random.nextDouble() - 0.45) * (baseValue * 0.05);
+            
+            double progress = (double) i / Math.max(1, dataPoints - 1);
+            double baseValue = startValue + (valueRange * progress);
+            double variation = (random.nextDouble() - 0.5) * (Math.abs(valueRange) * 0.1);
             double value = baseValue + variation;
-            
-            double totalInvested = 0;
-            for (PortfolioStock ps : stocks) {
-                totalInvested += ps.getPurchasePrice().doubleValue() * ps.getQuantity().doubleValue();
-            }
-            
-            if (totalInvested == 0) {
-                totalInvested = baseValue * 0.85;
-            }
             
             double gainLoss = value - totalInvested;
             
@@ -190,8 +197,6 @@ public class StatsService {
                 .totalValue(BigDecimal.valueOf(value))
                 .gainLoss(BigDecimal.valueOf(gainLoss))
                 .build());
-            
-            baseValue = value;
         }
         
         return points;

@@ -1,6 +1,6 @@
 package com.capitalot.service;
 
-import com.capitalot.dto.alphavantage.AlphaVantageSearchResponse;
+import com.capitalot.dto.yahoofinance.YahooFinanceSearchResponse;
 import com.capitalot.model.Stock;
 import com.capitalot.repository.StockRepository;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +19,7 @@ public class StockSearchService {
     
     private final StockRepository stockRepository;
     private final StockEnrichmentService stockEnrichmentService;
-    private final AlphaVantageService alphaVantageService;
+    private final YahooFinanceService yahooFinanceService;
     private final Random random = new Random();
     
     public List<Stock> searchStocks(String query) {
@@ -30,17 +30,17 @@ public class StockSearchService {
             // D'abord chercher dans la base de données locale
             stocks = stockRepository.searchStocks(query);
             
-            // Si peu ou pas de résultats locaux, rechercher via Alpha Vantage API
+            // Si peu ou pas de résultats locaux, rechercher via Yahoo Finance API
             if (stocks.size() < 3) {
-                log.info("Searching Alpha Vantage API for query: {}", query);
-                var searchResults = alphaVantageService.searchSymbol(query);
+                log.info("Searching Yahoo Finance API for query: {}", query);
+                var searchResults = yahooFinanceService.search(query);
                 
-                if (searchResults.isPresent() && searchResults.get().getBestMatches() != null) {
+                if (searchResults.isPresent() && searchResults.get().getQuotes() != null) {
                     // Convertir les résultats de l'API en objets Stock
-                    List<Stock> apiStocks = searchResults.get().getBestMatches().stream()
-                            .filter(match -> "Equity".equalsIgnoreCase(match.getType()) || 
-                                           "ETF".equalsIgnoreCase(match.getType()))
-                            .map(this::convertSearchMatchToStock)
+                    List<Stock> apiStocks = searchResults.get().getQuotes().stream()
+                            .filter(quote -> "EQUITY".equalsIgnoreCase(quote.getQuoteType()) || 
+                                           "ETF".equalsIgnoreCase(quote.getQuoteType()))
+                            .map(this::convertYahooQuoteToStock)
                             .collect(Collectors.toList());
                     
                     // Sauvegarder les nouveaux stocks dans la base de données
@@ -51,18 +51,18 @@ public class StockSearchService {
                         }
                     }
                     
-                    log.info("Found {} stocks from Alpha Vantage API", apiStocks.size());
+                    log.info("Found {} stocks from Yahoo Finance API", apiStocks.size());
                 }
             }
         }
         
-        // Enrichir avec les vrais prix depuis Alpha Vantage
+        // Enrichir avec les vrais prix depuis Yahoo Finance
         return stockEnrichmentService.enrichStocksWithRealPrices(stocks);
     }
     
     public List<Stock> getPopularStocks() {
         List<Stock> stocks = stockRepository.findPopularStocks();
-        // Enrichir avec les vrais prix depuis Alpha Vantage
+        // Enrichir avec les vrais prix depuis Yahoo Finance
         return stockEnrichmentService.enrichStocksWithRealPrices(stocks);
     }
     
@@ -70,7 +70,7 @@ public class StockSearchService {
         Stock stock = stockRepository.findBySymbol(symbol.toUpperCase())
             .orElseThrow(() -> new RuntimeException("Stock not found: " + symbol));
         
-        // Enrichir avec le vrai prix depuis Alpha Vantage
+        // Enrichir avec le vrai prix depuis Yahoo Finance
         return stockEnrichmentService.enrichStockWithRealPrice(stock);
     }
     
@@ -114,20 +114,23 @@ public class StockSearchService {
             .build();
     }
     
-    private Stock convertSearchMatchToStock(AlphaVantageSearchResponse.SearchMatch match) {
+    private Stock convertYahooQuoteToStock(YahooFinanceSearchResponse.Quote quote) {
         double longPct = 50.0 + random.nextDouble() * 40.0;
         double shortPct = 100.0 - longPct;
         
+        String name = quote.getLongname() != null ? quote.getLongname() : 
+                     (quote.getShortname() != null ? quote.getShortname() : quote.getSymbol());
+        
         return Stock.builder()
-                .symbol(match.getSymbol())
-                .name(match.getName())
-                .exchange(match.getRegion())
-                .currency(match.getCurrency())
+                .symbol(quote.getSymbol())
+                .name(name)
+                .exchange(quote.getExchange())
+                .currency("USD") // Yahoo search doesn't always provide currency, defaulting to USD
                 .sector("Unknown")
                 .industry("Unknown")
                 .isPopular(false)
                 .stockType(com.capitalot.model.StockType.STOCK)
-                .description(match.getName())
+                .description(name)
                 .annualDividend(0.0)
                 .risk(5.0)
                 .longPercentage(longPct)

@@ -37,16 +37,16 @@
             {{ portfolio.description }}
           </p>
 
-          <div class="portfolio-stats">
-            <div class="stat">
-              <span class="label">Stocks:</span>
-              <span class="value">{{ portfolio.stocks?.length || 0 }}</span>
-            </div>
-            <div v-if="portfolio.totalValue" class="stat total-value">
-              <span class="label">Total Value:</span>
-              <span class="value">${{ portfolio.totalValue.toFixed(2) }}</span>
-            </div>
-          </div>
+           <div class="portfolio-stats">
+             <div class="stat">
+               <span class="label">Stocks:</span>
+               <span class="value">{{ portfolio.stocks?.length || 0 }}</span>
+             </div>
+             <div v-if="portfolio.totalValue" class="stat total-value">
+               <span class="label">Total Value:</span>
+               <span class="value">{{ preferencesStore.formatPrice(portfolio.totalValue) }}</span>
+             </div>
+           </div>
 
           <button @click="$router.push(`/portfolios/${portfolio.id}`)" class="btn-view">
             View Portfolio →
@@ -114,8 +114,10 @@ import Navbar from '../components/Navbar.vue'
 import Modal from '../components/Modal.vue'
 import IconPicker from '../components/IconPicker.vue'
 import { usePortfolioStore } from '../stores/portfolio'
+import { usePreferencesStore } from '../stores/preferences'
 
 const portfolioStore = usePortfolioStore()
+const preferencesStore = usePreferencesStore()
 
 const showCreateModal = ref(false)
 const editingPortfolio = ref(null)

@@ -11,16 +11,16 @@
         <div class="stat-card">
           <div class="stat-icon">💰</div>
           <div class="stat-info">
-            <div class="stat-label">Total Invested</div>
-            <div class="stat-value">${{ formatNumber(allTimeStats?.totalInvested) }}</div>
+           <div class="stat-label">Total Invested</div>
+             <div class="stat-value">{{ preferencesStore.formatPrice(allTimeStats?.totalInvested) }}</div>
           </div>
         </div>
 
         <div class="stat-card">
           <div class="stat-icon">📊</div>
           <div class="stat-info">
-            <div class="stat-label">Current Value</div>
-            <div class="stat-value">${{ formatNumber(allTimeStats?.currentValue) }}</div>
+           <div class="stat-label">Current Value</div>
+             <div class="stat-value">{{ preferencesStore.formatPrice(allTimeStats?.currentValue) }}</div>
           </div>
         </div>
 
@@ -28,10 +28,10 @@
           <div class="stat-icon">📈</div>
           <div class="stat-info">
             <div class="stat-label">Monthly Gain/Loss</div>
-            <div :class="['stat-value', (monthlyStats?.totalGainLoss || 0) >= 0 ? 'positive' : 'negative']">
-              ${{ formatNumber(monthlyStats?.totalGainLoss) }}
-              <span class="stat-percent">({{ formatPercent(monthlyStats?.totalGainLossPercent) }}%)</span>
-            </div>
+             <div :class="['stat-value', (monthlyStats?.totalGainLoss || 0) >= 0 ? 'positive' : 'negative']">
+               {{ preferencesStore.formatPrice(monthlyStats?.totalGainLoss) }}
+               <span class="stat-percent">({{ formatPercent(monthlyStats?.totalGainLossPercent) }}%)</span>
+             </div>
           </div>
         </div>
 
@@ -39,10 +39,10 @@
           <div class="stat-icon">🚀</div>
           <div class="stat-info">
             <div class="stat-label">Yearly Gain/Loss</div>
-            <div :class="['stat-value', (yearlyStats?.totalGainLoss || 0) >= 0 ? 'positive' : 'negative']">
-              ${{ formatNumber(yearlyStats?.totalGainLoss) }}
-              <span class="stat-percent">({{ formatPercent(yearlyStats?.totalGainLossPercent) }}%)</span>
-            </div>
+             <div :class="['stat-value', (yearlyStats?.totalGainLoss || 0) >= 0 ? 'positive' : 'negative']">
+               {{ preferencesStore.formatPrice(yearlyStats?.totalGainLoss) }}
+               <span class="stat-percent">({{ formatPercent(yearlyStats?.totalGainLossPercent) }}%)</span>
+             </div>
           </div>
         </div>
       </div>
@@ -93,10 +93,10 @@
                 <span class="label">Stocks:</span>
                 <span class="value">{{ portfolio.stocks?.length || 0 }}</span>
               </div>
-              <div class="portfolio-stat">
-                <span class="label">Current Value:</span>
-                <span class="value">${{ formatNumber(portfolio.totalValue) }}</span>
-              </div>
+               <div class="portfolio-stat">
+                 <span class="label">Current Value:</span>
+                 <span class="value">{{ preferencesStore.formatPrice(portfolio.totalValue) }}</span>
+               </div>
             </div>
           </div>
         </div>
@@ -115,9 +115,11 @@ import { ref, onMounted, watch } from 'vue'
 import Navbar from '../components/Navbar.vue'
 import PerformanceChart from '../components/PerformanceChart.vue'
 import { usePortfolioStore } from '../stores/portfolio'
+import { usePreferencesStore } from '../stores/preferences'
 import api from '../services/api'
 
 const portfolioStore = usePortfolioStore()
+const preferencesStore = usePreferencesStore()
 
 const loading = ref(false)
 const allTimeStats = ref(null)

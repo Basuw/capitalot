@@ -27,6 +27,7 @@ import {
 } from 'chart.js'
 import zoomPlugin from 'chartjs-plugin-zoom'
 import annotationPlugin from 'chartjs-plugin-annotation'
+import { usePreferencesStore } from '../stores/preferences'
 
 ChartJS.register(
   CategoryScale,
@@ -40,6 +41,8 @@ ChartJS.register(
   zoomPlugin,
   annotationPlugin
 )
+
+const preferencesStore = usePreferencesStore()
 
 const props = defineProps({
   data: {
@@ -122,7 +125,7 @@ const chartOptions = {
       },
       callbacks: {
         label: function(context) {
-          return `${props.label}: $${context.parsed.y.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+          return `${props.label}: ${preferencesStore.formatPrice(context.parsed.y)}`
         }
       }
     },
@@ -137,7 +140,7 @@ const chartOptions = {
           borderDash: [5, 5],
           label: {
             display: true,
-            content: `Start: $${props.startPrice.toFixed(2)}`,
+            content: `Start: ${preferencesStore.formatPrice(props.startPrice)}`,
             position: 'end',
             backgroundColor: '#f59e0b',
             color: 'white',
@@ -180,7 +183,7 @@ const chartOptions = {
       ticks: {
         maxTicksLimit: 5,
         callback: function(value) {
-          return '$' + value.toLocaleString()
+          return preferencesStore.formatPrice(value)
         }
       },
       grid: {

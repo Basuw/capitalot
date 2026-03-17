@@ -31,23 +31,23 @@
           {{ portfolioStore.currentPortfolio.description }}
         </p>
         
-        <div class="portfolio-stats">
-          <div class="stat-card">
-            <div class="stat-label">Total Invested</div>
-            <div class="stat-value">${{ formatNumber(performanceStats?.totalInvested || 0) }}</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Current Value</div>
-            <div class="stat-value">${{ formatNumber(performanceStats?.currentValue || 0) }}</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">Total Gain/Loss</div>
-            <div class="stat-value" :class="(performanceStats?.totalGainLoss || 0) >= 0 ? 'positive' : 'negative'">
-              ${{ formatNumber(performanceStats?.totalGainLoss || 0) }}
-              ({{ formatPercent(performanceStats?.totalGainLossPercent || 0) }}%)
-            </div>
-          </div>
-        </div>
+         <div class="portfolio-stats">
+           <div class="stat-card">
+             <div class="stat-label">Total Invested</div>
+             <div class="stat-value">{{ preferencesStore.formatPrice(performanceStats?.totalInvested || 0) }}</div>
+           </div>
+           <div class="stat-card">
+             <div class="stat-label">Current Value</div>
+             <div class="stat-value">{{ preferencesStore.formatPrice(performanceStats?.currentValue || 0) }}</div>
+           </div>
+           <div class="stat-card">
+             <div class="stat-label">Total Gain/Loss</div>
+             <div class="stat-value" :class="(performanceStats?.totalGainLoss || 0) >= 0 ? 'positive' : 'negative'">
+               {{ preferencesStore.formatPrice(performanceStats?.totalGainLoss || 0) }}
+               ({{ formatPercent(performanceStats?.totalGainLossPercent || 0) }}%)
+             </div>
+           </div>
+         </div>
 
         <div v-if="showChart && performanceStats?.performanceHistory" class="chart-section">
           <div class="chart-header">
@@ -97,23 +97,23 @@
             </thead>
             <tbody>
               <tr v-for="stock in stocks" :key="stock.id" @click="openPurchaseHistory(stock)" class="clickable-row">
-                <td class="symbol">
-                  <router-link :to="`/stocks/${stock.stock.symbol}`" class="stock-link" @click.stop>
-                    {{ stock.stock.symbol }}
-                  </router-link>
-                </td>
-                <td>{{ stock.stock.name }}</td>
-                <td>
-                  <span class="badge">{{ stock.stock.type }}</span>
-                </td>
-                <td>{{ formatNumber(stock.quantity) }}</td>
-                <td>${{ formatNumber(stock.purchasePrice) }}</td>
-                <td>${{ formatNumber(stock.currentPrice) }}</td>
-                <td>${{ formatNumber(stock.currentValue) }}</td>
-                <td :class="(stock.gainLoss || 0) >= 0 ? 'positive' : 'negative'">
-                  ${{ formatNumber(stock.gainLoss) }}
-                  ({{ formatPercent(stock.gainLossPercentage) }}%)
-                </td>
+                 <td class="symbol">
+                   <router-link :to="`/stocks/${stock.stock.symbol}`" class="stock-link" @click.stop>
+                     {{ stock.stock.symbol }}
+                   </router-link>
+                 </td>
+                 <td>{{ stock.stock.name }}</td>
+                 <td>
+                   <span class="badge">{{ stock.stock.type }}</span>
+                 </td>
+                 <td>{{ formatNumber(stock.quantity) }}</td>
+                 <td>{{ preferencesStore.formatPrice(stock.purchasePrice) }}</td>
+                 <td>{{ preferencesStore.formatPrice(stock.currentPrice) }}</td>
+                 <td>{{ preferencesStore.formatPrice(stock.currentValue) }}</td>
+                 <td :class="(stock.gainLoss || 0) >= 0 ? 'positive' : 'negative'">
+                   {{ preferencesStore.formatPrice(stock.gainLoss) }}
+                   ({{ formatPercent(stock.gainLossPercentage) }}%)
+                 </td>
                 <td>
                   <div class="action-buttons">
                     <button @click.stop="openActionModal(stock)" class="btn-icon-modern delete" title="Remove/Sell">
@@ -157,10 +157,10 @@
               </div>
             </div>
 
-            <div v-if="selectedStock" class="selected-stock-info">
-              <h4>Selected: {{ selectedStock.symbol }} - {{ selectedStock.name }}</h4>
-              <p>Current Price: ${{ formatNumber(selectedStock.currentPrice || 0) }}</p>
-            </div>
+             <div v-if="selectedStock" class="selected-stock-info">
+               <h4>Selected: {{ selectedStock.symbol }} - {{ selectedStock.name }}</h4>
+               <p>Current Price: {{ preferencesStore.formatPrice(selectedStock.currentPrice || 0) }}</p>
+             </div>
 
             <div class="form-group">
               <label for="quantity">Quantity</label>
@@ -241,13 +241,13 @@
         </Modal>
 
         <Modal :show="showActionModal" title="Remove or Sell Stock?" @close="closeActionModal">
-          <div v-if="selectedStockForAction" class="action-modal-content">
-            <div class="selected-stock-info">
-              <h4>{{ selectedStockForAction.stock.symbol }} - {{ selectedStockForAction.stock.name }}</h4>
-              <p>Quantity: {{ formatNumber(selectedStockForAction.quantity) }}</p>
-              <p>Purchase Price: ${{ formatNumber(selectedStockForAction.purchasePrice) }}</p>
-              <p>Current Price: ${{ formatNumber(selectedStockForAction.currentPrice) }}</p>
-            </div>
+             <div v-if="selectedStockForAction" class="action-modal-content">
+               <div class="selected-stock-info">
+                 <h4>{{ selectedStockForAction.stock.symbol }} - {{ selectedStockForAction.stock.name }}</h4>
+                 <p>Quantity: {{ formatNumber(selectedStockForAction.quantity) }}</p>
+                 <p>Purchase Price: {{ preferencesStore.formatPrice(selectedStockForAction.purchasePrice) }}</p>
+                 <p>Current Price: {{ preferencesStore.formatPrice(selectedStockForAction.currentPrice) }}</p>
+               </div>
 
             <div class="action-choices">
               <button @click="confirmDelete" class="btn-delete">
@@ -269,13 +269,13 @@
         </Modal>
 
         <Modal :show="showSellStockModal" title="Sell Stock" @close="closeSellStockModal">
-          <form @submit.prevent="sellStock">
-            <div v-if="selectedStockToSell" class="selected-stock-info">
-              <h4>{{ selectedStockToSell.stock.symbol }} - {{ selectedStockToSell.stock.name }}</h4>
-              <p>Quantity: {{ formatNumber(selectedStockToSell.quantity) }}</p>
-              <p>Purchase Price: ${{ formatNumber(selectedStockToSell.purchasePrice) }}</p>
-              <p>Current Price: ${{ formatNumber(selectedStockToSell.currentPrice) }}</p>
-            </div>
+           <form @submit.prevent="sellStock">
+             <div v-if="selectedStockToSell" class="selected-stock-info">
+               <h4>{{ selectedStockToSell.stock.symbol }} - {{ selectedStockToSell.stock.name }}</h4>
+               <p>Quantity: {{ formatNumber(selectedStockToSell.quantity) }}</p>
+               <p>Purchase Price: {{ preferencesStore.formatPrice(selectedStockToSell.purchasePrice) }}</p>
+               <p>Current Price: {{ preferencesStore.formatPrice(selectedStockToSell.currentPrice) }}</p>
+             </div>
 
             <div class="form-group">
               <label for="salePrice">Sale Price</label>
@@ -360,26 +360,26 @@
           <div v-if="selectedStockForHistory" class="purchase-history-content">
             <div class="stock-summary">
               <h4>{{ selectedStockForHistory.stock.symbol }} - {{ selectedStockForHistory.stock.name }}</h4>
-              <div class="summary-stats">
-                <div class="summary-item">
-                  <span class="summary-label">Total Shares:</span>
-                  <span class="summary-value">{{ formatNumber(selectedStockForHistory.quantity) }}</span>
-                </div>
-                <div class="summary-item">
-                  <span class="summary-label">Avg. Purchase Price:</span>
-                  <span class="summary-value">${{ formatNumber(selectedStockForHistory.purchasePrice) }}</span>
-                </div>
-                <div class="summary-item">
-                  <span class="summary-label">Current Price:</span>
-                  <span class="summary-value">${{ formatNumber(selectedStockForHistory.currentPrice) }}</span>
-                </div>
-                <div class="summary-item">
-                  <span class="summary-label">Total Gain/Loss:</span>
-                  <span class="summary-value" :class="(selectedStockForHistory.gainLoss || 0) >= 0 ? 'positive' : 'negative'">
-                    ${{ formatNumber(selectedStockForHistory.gainLoss) }} ({{ formatPercent(selectedStockForHistory.gainLossPercentage) }}%)
-                  </span>
-                </div>
-              </div>
+               <div class="summary-stats">
+                 <div class="summary-item">
+                   <span class="summary-label">Total Shares:</span>
+                   <span class="summary-value">{{ formatNumber(selectedStockForHistory.quantity) }}</span>
+                 </div>
+                 <div class="summary-item">
+                   <span class="summary-label">Avg. Purchase Price:</span>
+                   <span class="summary-value">{{ preferencesStore.formatPrice(selectedStockForHistory.purchasePrice) }}</span>
+                 </div>
+                 <div class="summary-item">
+                   <span class="summary-label">Current Price:</span>
+                   <span class="summary-value">{{ preferencesStore.formatPrice(selectedStockForHistory.currentPrice) }}</span>
+                 </div>
+                 <div class="summary-item">
+                   <span class="summary-label">Total Gain/Loss:</span>
+                   <span class="summary-value" :class="(selectedStockForHistory.gainLoss || 0) >= 0 ? 'positive' : 'negative'">
+                     {{ preferencesStore.formatPrice(selectedStockForHistory.gainLoss) }} ({{ formatPercent(selectedStockForHistory.gainLossPercentage) }}%)
+                   </span>
+                 </div>
+               </div>
             </div>
 
             <div v-if="purchaseHistory.length" class="purchases-table-container">
@@ -397,16 +397,16 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="purchase in purchaseHistory" :key="purchase.id">
-                    <td>{{ formatDateTime(purchase.purchaseDate) }}</td>
-                    <td>{{ formatNumber(purchase.quantity) }}</td>
-                    <td>${{ formatNumber(purchase.purchasePrice) }}</td>
-                    <td>${{ formatNumber(purchase.purchasePrice * purchase.quantity) }}</td>
-                    <td>${{ formatNumber(purchase.currentValue) }}</td>
-                    <td :class="(purchase.gainLoss || 0) >= 0 ? 'positive' : 'negative'">
-                      ${{ formatNumber(purchase.gainLoss) }}<br>
-                      <small>({{ formatPercent(purchase.gainLossPercentage) }}%)</small>
-                    </td>
+                   <tr v-for="purchase in purchaseHistory" :key="purchase.id">
+                     <td>{{ formatDateTime(purchase.purchaseDate) }}</td>
+                     <td>{{ formatNumber(purchase.quantity) }}</td>
+                     <td>{{ preferencesStore.formatPrice(purchase.purchasePrice) }}</td>
+                     <td>{{ preferencesStore.formatPrice(purchase.purchasePrice * purchase.quantity) }}</td>
+                     <td>{{ preferencesStore.formatPrice(purchase.currentValue) }}</td>
+                     <td :class="(purchase.gainLoss || 0) >= 0 ? 'positive' : 'negative'">
+                       {{ preferencesStore.formatPrice(purchase.gainLoss) }}<br>
+                       <small>({{ formatPercent(purchase.gainLossPercentage) }}%)</small>
+                     </td>
                     <td>
                       <button @click="deletePurchase(purchase.id)" class="btn-delete-purchase-mini" title="Delete purchase">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
@@ -435,10 +435,12 @@ import Modal from '../components/Modal.vue'
 import PerformanceChart from '../components/PerformanceChart.vue'
 import IconPicker from '../components/IconPicker.vue'
 import { usePortfolioStore } from '../stores/portfolio'
+import { usePreferencesStore } from '../stores/preferences'
 import api from '../services/api'
 
 const route = useRoute()
 const portfolioStore = usePortfolioStore()
+const preferencesStore = usePreferencesStore()
 
 const showAddStockModal = ref(false)
 const showSellStockModal = ref(false)

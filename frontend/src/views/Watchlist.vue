@@ -93,21 +93,21 @@
                         <span v-else>-</span>
                       </td>
                       <td>
-                        <div class="price-column">
-                          <div class="price">${{ formatNumber(item.stock.currentPrice) }}</div>
-                          <div 
-                            v-if="item.stock.dailyChange !== undefined" 
-                            :class="['daily-change', item.stock.dailyChange >= 0 ? 'positive' : 'negative']"
-                          >
-                            {{ item.stock.dailyChange >= 0 ? '+' : '' }}${{ formatNumber(Math.abs(item.stock.dailyChange)) }}
-                            ({{ item.stock.dailyChange >= 0 ? '+' : '' }}{{ formatPercent(item.stock.dailyChangePercentage) }}%)
-                          </div>
-                        </div>
-                      </td>
-                      <td @click.stop="startEdit(item.id, 'targetPrice')" class="editable">
-                        <span v-if="editingCell?.id !== item.id || editingCell?.field !== 'targetPrice'">
-                          ${{ formatNumber(item.targetPrice) }}
-                        </span>
+                         <div class="price-column">
+                           <div class="price">{{ preferencesStore.formatPrice(item.stock.currentPrice) }}</div>
+                           <div 
+                             v-if="item.stock.dailyChange !== undefined" 
+                             :class="['daily-change', item.stock.dailyChange >= 0 ? 'positive' : 'negative']"
+                           >
+                             {{ item.stock.dailyChange >= 0 ? '+' : '' }}{{ preferencesStore.formatPrice(Math.abs(item.stock.dailyChange)) }}
+                             ({{ item.stock.dailyChange >= 0 ? '+' : '' }}{{ formatPercent(item.stock.dailyChangePercentage) }}%)
+                           </div>
+                         </div>
+                       </td>
+                       <td @click.stop="startEdit(item.id, 'targetPrice')" class="editable">
+                         <span v-if="editingCell?.id !== item.id || editingCell?.field !== 'targetPrice'">
+                           {{ preferencesStore.formatPrice(item.targetPrice) }}
+                         </span>
                         <input
                           v-else
                           v-model.number="editValue"
@@ -268,20 +268,20 @@
               :disabled="!!editingItem"
             />
             <div v-if="searchResults.length && !selectedStock && !editingItem" class="search-results">
-              <div 
-                v-for="stock in searchResults" 
-                :key="stock.id"
-                @click="selectStock(stock)"
-                class="search-result-item"
-              >
-                <div class="result-main">
-                  <strong>{{ stock.symbol }}</strong> - {{ stock.name }}
-                </div>
-                <div class="result-meta">
-                  <span class="result-type">{{ stock.type }}</span>
-                  <span class="result-price">${{ formatNumber(stock.currentPrice) }}</span>
-                </div>
-              </div>
+                <div 
+                   v-for="stock in searchResults" 
+                   :key="stock.id"
+                   @click="selectStock(stock)"
+                   class="search-result-item"
+                 >
+                   <div class="result-main">
+                     <strong>{{ stock.symbol }}</strong> - {{ stock.name }}
+                   </div>
+                   <div class="result-meta">
+                     <span class="result-type">{{ stock.type }}</span>
+                     <span class="result-price">{{ preferencesStore.formatPrice(stock.currentPrice) }}</span>
+                   </div>
+                 </div>
             </div>
             <div v-if="selectedStock || editingItem" class="selected-stock">
               <strong>{{ form.symbol }}</strong> - {{ form.name }}
@@ -338,10 +338,12 @@ import { useRouter } from 'vue-router'
 import Navbar from '../components/Navbar.vue'
 import Modal from '../components/Modal.vue'
 import { useWatchlistStore } from '../stores/watchlist'
+import { usePreferencesStore } from '../stores/preferences'
 import api from '../services/api'
 
 const router = useRouter()
 const watchlistStore = useWatchlistStore()
+const preferencesStore = usePreferencesStore()
 
 const showCreateWatchlistModal = ref(false)
 const showAddModal = ref(false)

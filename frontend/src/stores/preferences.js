@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import axios from 'axios'
 import { useAuthStore } from './auth'
+import { formatPrice, formatPriceShort, getCurrencySymbol } from '../services/currency'
 
 export const usePreferencesStore = defineStore('preferences', () => {
   const preferences = ref({
@@ -65,11 +66,14 @@ export const usePreferencesStore = defineStore('preferences', () => {
     }
   }
 
-  return {
-    preferences,
-    loading,
-    error,
-    loadPreferences,
-    updatePreferences
-  }
+   return {
+     preferences,
+     loading,
+     error,
+     loadPreferences,
+     updatePreferences,
+     formatPrice: (price) => formatPrice(price, preferences.value.currency),
+     formatPriceShort: (price) => formatPriceShort(price, preferences.value.currency),
+     getCurrencySymbol: () => getCurrencySymbol(preferences.value.currency)
+   }
 })

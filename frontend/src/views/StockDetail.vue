@@ -13,47 +13,47 @@
       <p v-if="stockInfo" class="stock-symbol-subtitle">{{ symbol }} • {{ stockInfo.exchange }}</p>
       
       <div v-if="stockInfo" class="main-info-grid">
-        <div class="info-card price-card">
-          <span class="label">Current Price</span>
-          <span class="value price">${{ stockInfo.currentPrice?.toFixed(2) || '0.00' }}</span>
-          <span 
-            v-if="stockInfo.dailyChange !== undefined" 
-            :class="['daily-change', stockInfo.dailyChange >= 0 ? 'positive' : 'negative']"
-          >
-            {{ stockInfo.dailyChange >= 0 ? '+' : '' }}${{ Math.abs(stockInfo.dailyChange).toFixed(2) }}
-            ({{ stockInfo.dailyChange >= 0 ? '+' : '' }}{{ stockInfo.dailyChangePercentage?.toFixed(2) }}%)
-          </span>
-        </div>
+         <div class="info-card price-card">
+           <span class="label">Current Price</span>
+           <span class="value price">{{ preferencesStore.formatPrice(stockInfo.currentPrice) }}</span>
+           <span 
+             v-if="stockInfo.dailyChange !== undefined" 
+             :class="['daily-change', stockInfo.dailyChange >= 0 ? 'positive' : 'negative']"
+           >
+             {{ stockInfo.dailyChange >= 0 ? '+' : '' }}{{ preferencesStore.formatPrice(Math.abs(stockInfo.dailyChange)) }}
+             ({{ stockInfo.dailyChange >= 0 ? '+' : '' }}{{ stockInfo.dailyChangePercentage?.toFixed(2) }}%)
+           </span>
+         </div>
 
-        <div class="info-card">
-          <span class="label">Open</span>
-          <span class="value">${{ stockInfo.openPrice?.toFixed(2) || 'N/A' }}</span>
-        </div>
+         <div class="info-card">
+           <span class="label">Open</span>
+           <span class="value">{{ stockInfo.openPrice ? preferencesStore.formatPrice(stockInfo.openPrice) : 'N/A' }}</span>
+         </div>
 
-        <div class="info-card">
-          <span class="label">High</span>
-          <span class="value high-value">${{ stockInfo.highPrice?.toFixed(2) || 'N/A' }}</span>
-        </div>
+         <div class="info-card">
+           <span class="label">High</span>
+           <span class="value high-value">{{ stockInfo.highPrice ? preferencesStore.formatPrice(stockInfo.highPrice) : 'N/A' }}</span>
+         </div>
 
-        <div class="info-card">
-          <span class="label">Low</span>
-          <span class="value low-value">${{ stockInfo.lowPrice?.toFixed(2) || 'N/A' }}</span>
-        </div>
-        
-        <div class="info-card">
-          <span class="label">Previous Close</span>
-          <span class="value">${{ stockInfo.previousClose?.toFixed(2) || 'N/A' }}</span>
-        </div>
+         <div class="info-card">
+           <span class="label">Low</span>
+           <span class="value low-value">{{ stockInfo.lowPrice ? preferencesStore.formatPrice(stockInfo.lowPrice) : 'N/A' }}</span>
+         </div>
+         
+         <div class="info-card">
+           <span class="label">Previous Close</span>
+           <span class="value">{{ stockInfo.previousClose ? preferencesStore.formatPrice(stockInfo.previousClose) : 'N/A' }}</span>
+         </div>
         
         <div class="info-card">
           <span class="label">Volume</span>
           <span class="value">{{ formatVolume(stockInfo.volume) }}</span>
         </div>
 
-        <div class="info-card">
-          <span class="label">Annual Dividend</span>
-          <span class="value">${{ stockInfo.annualDividend?.toFixed(2) || '0.00' }}</span>
-        </div>
+         <div class="info-card">
+           <span class="label">Annual Dividend</span>
+           <span class="value">{{ preferencesStore.formatPrice(stockInfo.annualDividend || 0) }}</span>
+         </div>
 
         <div class="info-card">
           <span class="label">Risk Score</span>
@@ -148,37 +148,37 @@
             </div>
           </div>
 
-          <!-- Best Day -->
-          <div v-if="preferencesStore.preferences.showBestWorstDay && metrics.bestDay" class="metric-card">
-            <div class="metric-header">
-              <span class="metric-icon">🎯</span>
-              <span class="metric-label">Best Day</span>
-            </div>
-            <div class="metric-value positive">
-              +{{ (metrics.bestDay.percentChange * 100).toFixed(2) }}%
-            </div>
-            <div class="metric-description">
-              {{ new Date(metrics.bestDay.date).toLocaleDateString() }}
-              <br/>
-              ${{ metrics.bestDay.price.toFixed(2) }} (+${{ metrics.bestDay.priceChange.toFixed(2) }})
-            </div>
-          </div>
+           <!-- Best Day -->
+           <div v-if="preferencesStore.preferences.showBestWorstDay && metrics.bestDay" class="metric-card">
+             <div class="metric-header">
+               <span class="metric-icon">🎯</span>
+               <span class="metric-label">Best Day</span>
+             </div>
+             <div class="metric-value positive">
+               +{{ (metrics.bestDay.percentChange * 100).toFixed(2) }}%
+             </div>
+             <div class="metric-description">
+               {{ new Date(metrics.bestDay.date).toLocaleDateString() }}
+               <br/>
+               {{ preferencesStore.formatPrice(metrics.bestDay.price) }} (+{{ preferencesStore.formatPrice(metrics.bestDay.priceChange) }})
+             </div>
+           </div>
 
-          <!-- Worst Day -->
-          <div v-if="preferencesStore.preferences.showBestWorstDay && metrics.worstDay" class="metric-card">
-            <div class="metric-header">
-              <span class="metric-icon">⚠️</span>
-              <span class="metric-label">Worst Day</span>
-            </div>
-            <div class="metric-value negative">
-              {{ (metrics.worstDay.percentChange * 100).toFixed(2) }}%
-            </div>
-            <div class="metric-description">
-              {{ new Date(metrics.worstDay.date).toLocaleDateString() }}
-              <br/>
-              ${{ metrics.worstDay.price.toFixed(2) }} (${{ metrics.worstDay.priceChange.toFixed(2) }})
-            </div>
-          </div>
+           <!-- Worst Day -->
+           <div v-if="preferencesStore.preferences.showBestWorstDay && metrics.worstDay" class="metric-card">
+             <div class="metric-header">
+               <span class="metric-icon">⚠️</span>
+               <span class="metric-label">Worst Day</span>
+             </div>
+             <div class="metric-value negative">
+               {{ (metrics.worstDay.percentChange * 100).toFixed(2) }}%
+             </div>
+             <div class="metric-description">
+               {{ new Date(metrics.worstDay.date).toLocaleDateString() }}
+               <br/>
+               {{ preferencesStore.formatPrice(metrics.worstDay.price) }} ({{ preferencesStore.formatPrice(metrics.worstDay.priceChange) }})
+             </div>
+           </div>
 
         </div>
       </div>

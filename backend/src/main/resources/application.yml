@@ -47,12 +47,9 @@ app:
     expiration: 86400000
   
   stock-api:
-    provider: stub
-    alpha-vantage:
-      api-key: ${ALPHA_VANTAGE_API_KEY:}
     finnhub:
       api-key: ${FINNHUB_API_KEY:}
-  
+
   cache:
     stock-quotes-ttl: 60
     daily-time-series-ttl: 3600
@@ -64,6 +61,6 @@ cors:
 
 logging:
   level:
-    com.capitalot.service.AlphaVantageService: DEBUG
+    com.capitalot.service.YahooFinanceService: DEBUG
     com.capitalot.service.StockPriceService: DEBUG
     com.capitalot.service.StockEnrichmentService: DEBUG

@@ -167,20 +167,18 @@ See `.env.example` for all available configuration options:
 3. Update `.env` with your client ID and secret
 4. Restart the application
 
-## Current Limitations
+## API Integrations
 
-### Stub Services
+The following services have been fully integrated with real-time financial data:
 
-The following services use stub implementations and should be replaced with real API integrations:
+- **StockSearchService**: Uses Yahoo Finance API for searching and auto-discovering stocks
+- **StockPriceService**: Fetches real-time and historical prices via Yahoo Finance
+- **StockEnrichmentService**: Enhances stock profiles with company details from Yahoo Finance
 
-- **StockSearchService**: Returns hardcoded list of 10 popular stocks
-- **StockPriceService**: Generates random prices between $50-$500
+### Data Providers
 
-### Suggested API Integrations
-
-- [Alpha Vantage](https://www.alphavantage.co/) - Stock data API
-- [Finnhub](https://finnhub.io/) - Financial data API
-- [Yahoo Finance API](https://www.yahoofinanceapi.com/) - Market data
+- [Yahoo Finance API](https://query1.finance.yahoo.com) - Main provider for real-time and historical data
+- [Finnhub](https://finnhub.io/) - Optional financial data provider
 
 ## Security Notes
 

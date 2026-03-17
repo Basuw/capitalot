@@ -19,11 +19,12 @@ public class CacheConfig {
             "stockQuotes", 
             "dailyTimeSeries", 
             "intradayTimeSeries", 
-            "symbolSearch"
+            "symbolSearch",
+            "yahooFinanceChart"
         );
         
         cacheManager.setCaffeine(Caffeine.newBuilder()
-            .expireAfterWrite(1, TimeUnit.MINUTES) // Cache expires after 1 minute
+            .expireAfterWrite(1, TimeUnit.MINUTES)
             .maximumSize(1000)
             .recordStats());
         

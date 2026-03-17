@@ -111,7 +111,7 @@
                   <strong>{{ stock.symbol }}</strong>
                 </td>
                 <td>{{ stock.name }}</td>
-                <td class="right-align">${{ formatNumber(stock.currentPrice) }}</td>
+                <td class="right-align">{{ formatPrice(stock.currentPrice, preferencesStore.preferences.currency) }}</td>
                 <td class="right-align">
                   <span :class="getDailyChangeClass(stock.dailyChangePercentage)">
                     {{ formatChange(stock.dailyChange) }}
@@ -172,8 +172,11 @@ import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import Navbar from '../components/Navbar.vue'
 import api from '../services/api'
+import { usePreferencesStore } from '../stores/preferences'
+import { formatPrice, getCurrencySymbol } from '../services/currency'
 
 const router = useRouter()
+const preferencesStore = usePreferencesStore()
 
 const searchQuery = ref('')
 const searchResults = ref([])
@@ -330,10 +333,10 @@ function formatNumber(num) {
 }
 
 function formatChange(num) {
-  if (!num) return '$0.00'
-  const formatted = Math.abs(num).toFixed(2)
-  return num >= 0 ? `+$${formatted}` : `-$${formatted}`
-}
+   if (!num) return preferencesStore.formatPrice(0)
+   const sign = num >= 0 ? '+' : ''
+   return sign + preferencesStore.formatPrice(Math.abs(num))
+ }
 
 function formatPercent(num) {
   if (!num && num !== 0) return '0.00'
