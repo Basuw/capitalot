@@ -11,7 +11,8 @@ export const usePreferencesStore = defineStore('preferences', () => {
     showStartPriceLine: false,
     showPerformanceBadge: true,
     showDetailedMetrics: true,
-    benchmarkSymbol: 'SPY'
+    benchmarkSymbol: 'SPY',
+    currency: 'USD'
   })
 
   const loading = ref(false)

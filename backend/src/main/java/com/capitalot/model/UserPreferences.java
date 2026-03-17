@@ -44,6 +44,11 @@ public class UserPreferences {
     @Builder.Default
     private String benchmarkSymbol = "SPY"; // S&P 500 ETF
     
+    // Currency preference
+    @Column(nullable = false)
+    @Builder.Default
+    private String currency = "USD";
+    
     // Display settings
     @Column(nullable = false)
     @Builder.Default

@@ -16,6 +16,7 @@ public class UserPreferencesDto {
     private Boolean showBestWorstDay;
     private Boolean showStartPriceLine;
     private String benchmarkSymbol;
+    private String currency;
     private Boolean showPerformanceBadge;
     private Boolean showDetailedMetrics;
 }

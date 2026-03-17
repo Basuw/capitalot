@@ -6,7 +6,34 @@
       <h1>Profil et Préférences</h1>
       
       <div class="preferences-section">
-        <h2>📊 Préférences d'affichage des graphiques</h2>
+         <h2>💱 Devise</h2>
+         <p class="section-description">
+           Sélectionnez votre devise de référence pour tous les prix et valeurs
+         </p>
+         
+         <div class="currency-selector">
+           <select 
+             v-model="preferences.currency"
+             @change="savePreferences"
+             class="currency-dropdown"
+           >
+             <option value="USD">USD - Dollar américain</option>
+             <option value="EUR">EUR - Euro</option>
+             <option value="GBP">GBP - Livre sterling</option>
+             <option value="JPY">JPY - Yen japonais</option>
+             <option value="CHF">CHF - Franc suisse</option>
+             <option value="CAD">CAD - Dollar canadien</option>
+             <option value="AUD">AUD - Dollar australien</option>
+           </select>
+         </div>
+         
+         <div v-if="saveMessage" class="save-message" :class="{ error: saveError }">
+           {{ saveMessage }}
+         </div>
+       </div>
+       
+       <div class="preferences-section">
+         <h2>📊 Préférences d'affichage des graphiques</h2>
         <p class="section-description">
           Personnalisez les métriques et informations affichées sur les graphiques d'actions
         </p>
@@ -159,6 +186,7 @@ const preferences = ref({
   showBestWorstDay: false,
   showStartPriceLine: false,
   benchmarkSymbol: 'SPY',
+  currency: 'USD',
   showPerformanceBadge: true,
   showDetailedMetrics: true
 })
@@ -346,6 +374,35 @@ input:checked + .slider:before {
 .benchmark-input:disabled {
   background: #f5f5f5;
   cursor: not-allowed;
+}
+
+.currency-selector {
+  display: flex;
+  align-items: center;
+  padding: 1.5rem;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 2px solid #e0e0e0;
+}
+
+.currency-dropdown {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+  background: white;
+  cursor: pointer;
+  transition: border-color 0.3s;
+}
+
+.currency-dropdown:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.currency-dropdown:hover {
+  border-color: #667eea;
 }
 
 .save-message {

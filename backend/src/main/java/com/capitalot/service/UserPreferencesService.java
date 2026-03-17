@@ -53,6 +53,9 @@ public class UserPreferencesService {
         if (dto.getBenchmarkSymbol() != null && !dto.getBenchmarkSymbol().isEmpty()) {
             preferences.setBenchmarkSymbol(dto.getBenchmarkSymbol());
         }
+        if (dto.getCurrency() != null && !dto.getCurrency().isEmpty()) {
+            preferences.setCurrency(dto.getCurrency());
+        }
         if (dto.getShowPerformanceBadge() != null) {
             preferences.setShowPerformanceBadge(dto.getShowPerformanceBadge());
         }
@@ -77,6 +80,7 @@ public class UserPreferencesService {
                 .showBestWorstDay(false)
                 .showStartPriceLine(false)
                 .benchmarkSymbol("SPY")
+                .currency("USD")
                 .showPerformanceBadge(true)
                 .showDetailedMetrics(true)
                 .build();
@@ -92,6 +96,7 @@ public class UserPreferencesService {
                 .showBestWorstDay(preferences.getShowBestWorstDay())
                 .showStartPriceLine(preferences.getShowStartPriceLine())
                 .benchmarkSymbol(preferences.getBenchmarkSymbol())
+                .currency(preferences.getCurrency())
                 .showPerformanceBadge(preferences.getShowPerformanceBadge())
                 .showDetailedMetrics(preferences.getShowDetailedMetrics())
                 .build();
