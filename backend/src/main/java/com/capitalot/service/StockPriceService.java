@@ -40,52 +40,59 @@ public class StockPriceService {
         
         if (chartOpt.isPresent()) {
             YahooFinanceChartResponse response = chartOpt.get();
-            YahooFinanceChartResponse.Result result = response.getChart().getResult().get(0);
-            
-            try {
-                YahooFinanceChartResponse.Meta meta = result.getMeta();
-                Double currentPrice = meta.getRegularMarketPrice();
-                Long marketTime = meta.getRegularMarketTime();
+            if (response.getChart() != null && response.getChart().getResult() != null && !response.getChart().getResult().isEmpty()) {
+                YahooFinanceChartResponse.Result result = response.getChart().getResult().get(0);
                 
-                if (currentPrice == null) {
-                    YahooFinanceChartResponse.Quote quote = result.getIndicators().getQuote().get(0);
-                    List<Double> closePrices = quote.getClose();
-                    if (closePrices != null && !closePrices.isEmpty()) {
-                        int lastIndex = closePrices.size() - 1;
-                        while (lastIndex >= 0 && closePrices.get(lastIndex) == null) {
-                            lastIndex--;
-                        }
-                        if (lastIndex >= 0) {
-                            currentPrice = closePrices.get(lastIndex);
-                            if (result.getTimestamp() != null && result.getTimestamp().size() > lastIndex) {
-                                marketTime = result.getTimestamp().get(lastIndex);
+                try {
+                    YahooFinanceChartResponse.Meta meta = result.getMeta();
+                    Double currentPrice = meta.getRegularMarketPrice();
+                    Long marketTime = meta.getRegularMarketTime();
+                    
+                    if (currentPrice == null) {
+                        if (result.getIndicators() != null && result.getIndicators().getQuote() != null && !result.getIndicators().getQuote().isEmpty()) {
+                            YahooFinanceChartResponse.Quote quote = result.getIndicators().getQuote().get(0);
+                            List<Double> closePrices = quote.getClose();
+                            if (closePrices != null && !closePrices.isEmpty()) {
+                                int lastIndex = closePrices.size() - 1;
+                                while (lastIndex >= 0 && (closePrices.get(lastIndex) == null || closePrices.get(lastIndex) == 0.0)) {
+                                    lastIndex--;
+                                }
+                                if (lastIndex >= 0) {
+                                    currentPrice = closePrices.get(lastIndex);
+                                    if (result.getTimestamp() != null && result.getTimestamp().size() > lastIndex) {
+                                        marketTime = result.getTimestamp().get(lastIndex);
+                                    }
+                                }
                             }
                         }
                     }
+                    
+                    if (currentPrice != null && currentPrice != 0.0) {
+                        LocalDateTime dateTime = Instant.ofEpochSecond(marketTime != null ? marketTime : Instant.now().getEpochSecond())
+                            .atZone(ZoneId.systemDefault())
+                            .toLocalDateTime();
+                        
+                        log.info("[DEBUG] Fetched price for {}: ${} at date: {}", symbol, currentPrice, dateTime);
+                        
+                        Double previousClose = meta.getPreviousClose() != null && meta.getPreviousClose() != 0.0 ? meta.getPreviousClose() : currentPrice;
+                        BigDecimal changePercent = BigDecimal.ZERO;
+                        if (previousClose != 0.0) {
+                            changePercent = BigDecimal.valueOf((currentPrice - previousClose) / previousClose * 100)
+                                .setScale(2, RoundingMode.HALF_UP);
+                        }
+                        
+                        return StockPriceResponse.builder()
+                            .symbol(symbol)
+                            .currentPrice(BigDecimal.valueOf(currentPrice))
+                            .previousClose(BigDecimal.valueOf(previousClose))
+                            .changePercent(changePercent)
+                            .currency(meta.getCurrency() != null ? meta.getCurrency() : "USD")
+                            .lastUpdated(dateTime)
+                            .build();
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to parse Yahoo Finance chart response for {}, trying quoteSummary", symbol, e);
                 }
-                
-                if (currentPrice != null) {
-                    LocalDateTime dateTime = Instant.ofEpochSecond(marketTime != null ? marketTime : Instant.now().getEpochSecond())
-                        .atZone(ZoneId.systemDefault())
-                        .toLocalDateTime();
-                    
-                    log.info("[DEBUG] Fetched price for {}: ${} at date: {}", symbol, currentPrice, dateTime);
-                    
-                    Double previousClose = meta.getPreviousClose() != null ? meta.getPreviousClose() : currentPrice;
-                    BigDecimal changePercent = BigDecimal.valueOf((currentPrice - previousClose) / previousClose * 100)
-                        .setScale(2, RoundingMode.HALF_UP);
-                    
-                    return StockPriceResponse.builder()
-                        .symbol(symbol)
-                        .currentPrice(BigDecimal.valueOf(currentPrice))
-                        .previousClose(BigDecimal.valueOf(previousClose))
-                        .changePercent(changePercent)
-                        .currency(meta.getCurrency() != null ? meta.getCurrency() : "USD")
-                        .lastUpdated(dateTime)
-                        .build();
-                }
-            } catch (Exception e) {
-                log.warn("Failed to parse Yahoo Finance chart response for {}, trying quoteSummary", symbol, e);
             }
         }
         
@@ -93,8 +100,9 @@ public class StockPriceService {
         var summaryOpt = yahooFinanceService.getQuoteSummary(symbol);
         if (summaryOpt.isPresent()) {
             var summary = summaryOpt.get();
-            if (summary.getQuoteSummary() != null && !summary.getQuoteSummary().getResult().isEmpty()) {
-                var financialData = summary.getQuoteSummary().getResult().get(0).getFinancialData();
+            if (summary.getQuoteSummary() != null && summary.getQuoteSummary().getResult() != null && !summary.getQuoteSummary().getResult().isEmpty()) {
+                var result = summary.getQuoteSummary().getResult().get(0);
+                var financialData = result.getFinancialData();
                 if (financialData != null && financialData.getCurrentPrice() != null && financialData.getCurrentPrice().getRaw() != null) {
                     Double currentPrice = financialData.getCurrentPrice().getRaw();
                     log.info("[DEBUG] Fetched price for {} from quoteSummary: ${} at now: {}", symbol, currentPrice, LocalDateTime.now());
@@ -105,6 +113,7 @@ public class StockPriceService {
                         .previousClose(BigDecimal.valueOf(currentPrice)) // approximation
                         .changePercent(BigDecimal.ZERO)
                         .currency("USD")
+                        .lastUpdated(LocalDateTime.now())
                         .build();
                 }
             }
@@ -161,13 +170,11 @@ public class StockPriceService {
             .changePercent(changePercent)
             .volume(1000000L + random.nextInt(9000000))
             .currency("USD")
+            .lastUpdated(LocalDateTime.now())
             .build();
     }
     
     public List<PricePointDto> getStockHistory(String symbol, String period) {
-        Stock stock = stockRepository.findBySymbol(symbol)
-            .orElseThrow(() -> new RuntimeException("Stock not found"));
-        
         String range = mapPeriodToYahooRange(period);
         String interval = shouldUseIntradayData(period) ? "1m" : "1d";
         
@@ -176,21 +183,8 @@ public class StockPriceService {
             return convertYahooChartToHistory(chartOpt.get());
         }
         
-        LocalDateTime startDate = getStartDateFromPeriod(period);
-        List<StockPriceHistory> history = stockPriceHistoryRepository
-            .findByStockIdAndTimestampAfter(stock.getId(), startDate);
-        
-        if (history.isEmpty()) {
-            log.info("Using mock history data for symbol: {}", symbol);
-            return generateMockHistory(symbol, period);
-        }
-        
-        return history.stream()
-            .map(h -> PricePointDto.builder()
-                .timestamp(h.getTimestamp())
-                .price(h.getPrice())
-                .build())
-            .toList();
+        log.info("Using mock history data for symbol: {}", symbol);
+        return generateMockHistory(symbol, period);
     }
     
     private String mapPeriodToYahooRange(String period) {
@@ -208,12 +202,21 @@ public class StockPriceService {
     
     private List<PricePointDto> convertYahooChartToHistory(YahooFinanceChartResponse response) {
         List<PricePointDto> points = new ArrayList<>();
+        if (response.getChart() == null || response.getChart().getResult() == null || response.getChart().getResult().isEmpty()) {
+            return points;
+        }
+        
         YahooFinanceChartResponse.Result result = response.getChart().getResult().get(0);
         List<Long> timestamps = result.getTimestamp();
+        
+        if (timestamps == null || result.getIndicators() == null || result.getIndicators().getQuote() == null || result.getIndicators().getQuote().isEmpty()) {
+            return points;
+        }
+        
         YahooFinanceChartResponse.Quote quote = result.getIndicators().getQuote().get(0);
         List<Double> closePrice = quote.getClose();
         
-        if (timestamps == null || closePrice == null || timestamps.size() != closePrice.size()) {
+        if (closePrice == null || timestamps.size() != closePrice.size()) {
             log.warn("Mismatched timestamps and price data");
             return points;
         }
@@ -223,7 +226,7 @@ public class StockPriceService {
                 Long timestamp = timestamps.get(i);
                 Double price = closePrice.get(i);
                 
-                if (timestamp != null && price != null) {
+                if (timestamp != null && price != null && price != 0.0) {
                     LocalDateTime dateTime = Instant.ofEpochSecond(timestamp)
                         .atZone(ZoneId.systemDefault())
                         .toLocalDateTime();
@@ -244,10 +247,7 @@ public class StockPriceService {
     }
     
     public List<PricePointDto> getPriceHistory(String symbol) {
-        Stock stock = stockRepository.findBySymbol(symbol)
-            .orElseThrow(() -> new RuntimeException("Stock not found"));
-        
-        return generateMockHistory(symbol, "1Y");
+        return getStockHistory(symbol, "1Y");
     }
     
     private LocalDateTime getStartDateFromPeriod(String period) {
@@ -321,39 +321,44 @@ public class StockPriceService {
     public BigDecimal getHistoricalPrice(String symbol, LocalDateTime date) {
         log.info("Fetching historical price for {} at {}", symbol, date);
         
-        // Convert LocalDateTime to Epoch seconds (start and end of the day)
-        long period1 = date.toLocalDate().atStartOfDay(ZoneId.systemDefault()).toEpochSecond();
-        long period2 = date.toLocalDate().plusDays(1).atStartOfDay(ZoneId.systemDefault()).toEpochSecond();
+        // Use the method suggested by the user: period1 and period2
+        // For a single day, we can take a small window around that date
+        long period1 = date.atZone(ZoneId.systemDefault()).toEpochSecond();
+        long period2 = date.plusDays(1).atZone(ZoneId.systemDefault()).toEpochSecond();
         
         var chartOpt = yahooFinanceService.getChartDataForPeriod(symbol, period1, period2, "1d");
         
         if (chartOpt.isPresent()) {
             YahooFinanceChartResponse response = chartOpt.get();
-            YahooFinanceChartResponse.Result result = response.getChart().getResult().get(0);
-            List<Long> timestamps = result.getTimestamp();
-            YahooFinanceChartResponse.Quote quote = result.getIndicators().getQuote().get(0);
-            List<Double> closePrice = quote.getClose();
-            
-            if (closePrice != null && !closePrice.isEmpty()) {
-                // Find the closest price to the requested date if multiple points returned
-                int index = 0;
-                long targetEpoch = date.atZone(ZoneId.systemDefault()).toEpochSecond();
-                long minDiff = Long.MAX_VALUE;
+            if (response.getChart() != null && response.getChart().getResult() != null && !response.getChart().getResult().isEmpty()) {
+                YahooFinanceChartResponse.Result result = response.getChart().getResult().get(0);
+                List<Long> timestamps = result.getTimestamp();
                 
-                for (int i = 0; i < timestamps.size(); i++) {
-                    if (closePrice.get(i) != null) {
-                        long diff = Math.abs(timestamps.get(i) - targetEpoch);
-                        if (diff < minDiff) {
-                            minDiff = diff;
-                            index = i;
+                if (result.getIndicators() != null && result.getIndicators().getQuote() != null && !result.getIndicators().getQuote().isEmpty()) {
+                    YahooFinanceChartResponse.Quote quote = result.getIndicators().getQuote().get(0);
+                    List<Double> closePrice = quote.getClose();
+                    
+                    if (closePrice != null && !closePrice.isEmpty() && timestamps != null) {
+                        int index = 0;
+                        long targetEpoch = date.atZone(ZoneId.systemDefault()).toEpochSecond();
+                        long minDiff = Long.MAX_VALUE;
+                        
+                        for (int i = 0; i < timestamps.size(); i++) {
+                            if (closePrice.get(i) != null && closePrice.get(i) != 0.0) {
+                                long diff = Math.abs(timestamps.get(i) - targetEpoch);
+                                if (diff < minDiff) {
+                                    minDiff = diff;
+                                    index = i;
+                                }
+                            }
+                        }
+                        
+                        if (closePrice.get(index) != null && closePrice.get(index) != 0.0) {
+                            BigDecimal price = BigDecimal.valueOf(closePrice.get(index));
+                            log.info("Found accurate historical price for {} on {}: ${}", symbol, date.toLocalDate(), price);
+                            return price;
                         }
                     }
-                }
-                
-                if (closePrice.get(index) != null) {
-                    BigDecimal price = BigDecimal.valueOf(closePrice.get(index));
-                    log.info("Found accurate historical price for {} on {}: ${}", symbol, date.toLocalDate(), price);
-                    return price;
                 }
             }
         }
@@ -363,40 +368,20 @@ public class StockPriceService {
         var broadChartOpt = yahooFinanceService.getChartData(symbol, range, "1d");
         
         if (broadChartOpt.isPresent()) {
-            YahooFinanceChartResponse response = broadChartOpt.get();
-            YahooFinanceChartResponse.Result result = response.getChart().getResult().get(0);
-            List<Long> timestamps = result.getTimestamp();
-            YahooFinanceChartResponse.Quote quote = result.getIndicators().getQuote().get(0);
-            List<Double> closePrice = quote.getClose();
-            
-            long targetEpoch = date.atZone(ZoneId.systemDefault()).toEpochSecond();
-            
-            for (int i = 0; i < timestamps.size(); i++) {
-                if (closePrice.get(i) != null && Math.abs(timestamps.get(i) - targetEpoch) < 86400) {
-                    BigDecimal price = BigDecimal.valueOf(closePrice.get(i));
-                    log.info("Found historical price from broad range for {} on {}: ${}", symbol, date.toLocalDate(), price);
-                    return price;
-                }
-            }
-        }
-        
-        Stock stock = stockRepository.findBySymbol(symbol).orElse(null);
-        if (stock != null) {
-            List<StockPriceHistory> history = stockPriceHistoryRepository
-                .findByStockIdAndTimestampAfter(stock.getId(), date.minusDays(7));
-            
+            List<PricePointDto> history = convertYahooChartToHistory(broadChartOpt.get());
             if (!history.isEmpty()) {
-                StockPriceHistory closestPrice = history.stream()
+                long targetEpoch = date.atZone(ZoneId.systemDefault()).toEpochSecond();
+                PricePointDto closest = history.stream()
                     .min((a, b) -> {
-                        long diffA = Math.abs(java.time.Duration.between(date, a.getTimestamp()).toMinutes());
-                        long diffB = Math.abs(java.time.Duration.between(date, b.getTimestamp()).toMinutes());
+                        long diffA = Math.abs(a.getTimestamp().atZone(ZoneId.systemDefault()).toEpochSecond() - targetEpoch);
+                        long diffB = Math.abs(b.getTimestamp().atZone(ZoneId.systemDefault()).toEpochSecond() - targetEpoch);
                         return Long.compare(diffA, diffB);
                     })
                     .orElse(null);
                 
-                if (closestPrice != null) {
-                    log.info("Found historical price from database for {} near {}: ${}", symbol, date, closestPrice.getPrice());
-                    return BigDecimal.valueOf(closestPrice.getPrice());
+                if (closest != null) {
+                    log.info("Found historical price from broad range for {} on {}: ${}", symbol, date.toLocalDate(), closest.getPrice());
+                    return BigDecimal.valueOf(closest.getPrice());
                 }
             }
         }

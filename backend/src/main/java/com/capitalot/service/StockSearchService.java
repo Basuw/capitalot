@@ -20,6 +20,7 @@ public class StockSearchService {
     private final StockRepository stockRepository;
     private final StockEnrichmentService stockEnrichmentService;
     private final YahooFinanceService yahooFinanceService;
+    private final AlphaVantageService alphaVantageService;
     private final Random random = new Random();
     
     public List<Stock> searchStocks(String query) {
@@ -30,17 +31,15 @@ public class StockSearchService {
             // D'abord chercher dans la base de données locale
             stocks = stockRepository.searchStocks(query);
             
-            // Si peu ou pas de résultats locaux, rechercher via Yahoo Finance API
+            // Si peu ou pas de résultats locaux, rechercher via Alpha Vantage API
             if (stocks.size() < 3) {
-                log.info("Searching Yahoo Finance API for query: {}", query);
-                var searchResults = yahooFinanceService.search(query);
+                log.info("Searching Alpha Vantage API for query: {}", query);
+                var searchResults = alphaVantageService.search(query);
                 
-                if (searchResults.isPresent() && searchResults.get().getQuotes() != null) {
+                if (searchResults.isPresent() && searchResults.get().getBestMatches() != null) {
                     // Convertir les résultats de l'API en objets Stock
-                    List<Stock> apiStocks = searchResults.get().getQuotes().stream()
-                            .filter(quote -> "EQUITY".equalsIgnoreCase(quote.getQuoteType()) || 
-                                           "ETF".equalsIgnoreCase(quote.getQuoteType()))
-                            .map(this::convertYahooQuoteToStock)
+                    List<Stock> apiStocks = searchResults.get().getBestMatches().stream()
+                            .map(this::convertAlphaVantageMatchToStock)
                             .collect(Collectors.toList());
                     
                     // Sauvegarder les nouveaux stocks dans la base de données
@@ -51,7 +50,7 @@ public class StockSearchService {
                         }
                     }
                     
-                    log.info("Found {} stocks from Yahoo Finance API", apiStocks.size());
+                    log.info("Found {} stocks from Alpha Vantage API", apiStocks.size());
                 }
             }
         }
@@ -114,23 +113,20 @@ public class StockSearchService {
             .build();
     }
     
-    private Stock convertYahooQuoteToStock(YahooFinanceSearchResponse.Quote quote) {
+    private Stock convertAlphaVantageMatchToStock(com.capitalot.dto.AlphaVantageSearchResponse.Match match) {
         double longPct = 50.0 + random.nextDouble() * 40.0;
         double shortPct = 100.0 - longPct;
         
-        String name = quote.getLongname() != null ? quote.getLongname() : 
-                     (quote.getShortname() != null ? quote.getShortname() : quote.getSymbol());
-        
         return Stock.builder()
-                .symbol(quote.getSymbol())
-                .name(name)
-                .exchange(quote.getExchange())
-                .currency("USD") // Yahoo search doesn't always provide currency, defaulting to USD
+                .symbol(match.getSymbol())
+                .name(match.getName())
+                .exchange(match.getRegion())
+                .currency(match.getCurrency())
                 .sector("Unknown")
                 .industry("Unknown")
                 .isPopular(false)
                 .stockType(com.capitalot.model.StockType.STOCK)
-                .description(name)
+                .description(match.getName())
                 .annualDividend(0.0)
                 .risk(5.0)
                 .longPercentage(longPct)

@@ -25,6 +25,22 @@ public class YahooFinanceService {
         this.restTemplate = new RestTemplate();
     }
     
+    private <T> T fetch(String url, Class<T> responseType) {
+        try {
+            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+            headers.set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
+            headers.set("Accept", "application/json");
+            
+            org.springframework.http.HttpEntity<String> entity = new org.springframework.http.HttpEntity<>(headers);
+            org.springframework.http.ResponseEntity<T> response = restTemplate.exchange(url, org.springframework.http.HttpMethod.GET, entity, responseType);
+            
+            return response.getBody();
+        } catch (Exception e) {
+            log.error("Error fetching from URL: {}", url, e);
+            return null;
+        }
+    }
+    
     @Cacheable(value = "yahooFinanceChart", key = "#symbol + '-' + #range + '-' + #interval", unless = "#result == null")
     public Optional<YahooFinanceChartResponse> getChartData(String symbol, String range, String interval) {
         try {
@@ -34,7 +50,7 @@ public class YahooFinanceService {
                     .toUriString();
             
             log.info("Fetching chart data for symbol: {} with range: {} and interval: {}", symbol, range, interval);
-            YahooFinanceChartResponse response = restTemplate.getForObject(url, YahooFinanceChartResponse.class);
+            YahooFinanceChartResponse response = fetch(url, YahooFinanceChartResponse.class);
             
             if (isValidChartResponse(response)) {
                 return Optional.of(response);
@@ -59,7 +75,7 @@ public class YahooFinanceService {
                     .toUriString();
             
             log.info("Fetching chart data for symbol: {} for period {} to {} with interval: {}", symbol, period1, period2, interval);
-            YahooFinanceChartResponse response = restTemplate.getForObject(url, YahooFinanceChartResponse.class);
+            YahooFinanceChartResponse response = fetch(url, YahooFinanceChartResponse.class);
             
             if (isValidChartResponse(response)) {
                 return Optional.of(response);
@@ -82,7 +98,7 @@ public class YahooFinanceService {
                     .toUriString();
             
             log.info("[DEBUG] Searching Yahoo Finance for query: {}", query);
-            YahooFinanceSearchResponse response = restTemplate.getForObject(url, YahooFinanceSearchResponse.class);
+            YahooFinanceSearchResponse response = fetch(url, YahooFinanceSearchResponse.class);
             
             if (response != null && response.getQuotes() != null && !response.getQuotes().isEmpty()) {
                 log.info("[DEBUG] Found {} results for query: {}", response.getQuotes().size(), query);
@@ -107,7 +123,7 @@ public class YahooFinanceService {
                     .toUriString();
             
             log.info("Fetching quote summary for symbol: {}", symbol);
-            YahooFinanceQuoteSummaryResponse response = restTemplate.getForObject(url, YahooFinanceQuoteSummaryResponse.class);
+            YahooFinanceQuoteSummaryResponse response = fetch(url, YahooFinanceQuoteSummaryResponse.class);
             
             if (response != null && response.getQuoteSummary() != null && response.getQuoteSummary().getResult() != null &&
                 !response.getQuoteSummary().getResult().isEmpty()) {
