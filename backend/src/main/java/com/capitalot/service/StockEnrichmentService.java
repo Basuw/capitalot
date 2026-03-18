@@ -17,69 +17,74 @@ public class StockEnrichmentService {
     private final StockPriceService stockPriceService;
     private final YahooFinanceService yahooFinanceService;
     
-    /**
-     * Enrichit un stock avec les vraies données de prix depuis Yahoo Finance
-     */
     public Stock enrichStockWithRealPrice(Stock stock) {
+        if (stock == null) return null;
+        
         try {
             StockPriceResponse priceData = stockPriceService.getStockPrice(stock.getSymbol());
             
-            stock.setCurrentPrice(priceData.getCurrentPrice().doubleValue());
-            stock.setOpenPrice(priceData.getOpenPrice() != null ? priceData.getOpenPrice().doubleValue() : null);
-            stock.setHighPrice(priceData.getHighPrice() != null ? priceData.getHighPrice().doubleValue() : null);
-            stock.setLowPrice(priceData.getLowPrice() != null ? priceData.getLowPrice().doubleValue() : null);
-            stock.setPreviousClose(priceData.getPreviousClose() != null ? priceData.getPreviousClose().doubleValue() : null);
-            stock.setVolume(priceData.getVolume());
-            stock.setDailyChange(priceData.getCurrentPrice().subtract(priceData.getPreviousClose()).doubleValue());
-            stock.setDailyChangePercentage(priceData.getChangePercent().doubleValue());
-            stock.setLastPriceUpdate(priceData.getLastUpdated());
-            
-            log.info("[DEBUG] Final enriched price for {}: ${} (Market Date: {})", stock.getSymbol(), stock.getCurrentPrice(), stock.getLastPriceUpdate());
+            if (priceData != null && priceData.getCurrentPrice() != null) {
+                stock.setCurrentPrice(priceData.getCurrentPrice().doubleValue());
+                if (priceData.getOpenPrice() != null) stock.setOpenPrice(priceData.getOpenPrice().doubleValue());
+                if (priceData.getHighPrice() != null) stock.setHighPrice(priceData.getHighPrice().doubleValue());
+                if (priceData.getLowPrice() != null) stock.setLowPrice(priceData.getLowPrice().doubleValue());
+                if (priceData.getPreviousClose() != null) stock.setPreviousClose(priceData.getPreviousClose().doubleValue());
+                
+                stock.setVolume(priceData.getVolume());
+                
+                if (priceData.getPreviousClose() != null) {
+                    stock.setDailyChange(priceData.getCurrentPrice().subtract(priceData.getPreviousClose()).doubleValue());
+                }
+                
+                if (priceData.getChangePercent() != null) {
+                    stock.setDailyChangePercentage(priceData.getChangePercent().doubleValue());
+                }
+                
+                stock.setLastPriceUpdate(priceData.getLastUpdated());
+            }
 
-            // Enrich with additional details from Yahoo if missing
-            if ("Unknown".equals(stock.getSector()) || "Unknown".equals(stock.getIndustry()) || stock.getDescription() == null || stock.getDescription().equals(stock.getName())) {
+            // Enrichissement des détails si "Unknown"
+            if (stock.getSector() == null || "Unknown".equals(stock.getSector())) {
                 enrichStockDetails(stock);
             }
         } catch (Exception e) {
-            log.warn("Failed to enrich stock {} with real price, using calculated values", stock.getSymbol(), e);
+            log.error("Error enriching stock {}: {}", stock.getSymbol(), e.getMessage());
+            // On ne rebalance pas l'exception pour permettre l'affichage même sans prix frais
         }
         
         return stock;
     }
 
     private void enrichStockDetails(Stock stock) {
-        yahooFinanceService.getQuoteSummary(stock.getSymbol()).ifPresent(summary -> {
-            if (summary.getQuoteSummary() != null && summary.getQuoteSummary().getResult() != null && !summary.getQuoteSummary().getResult().isEmpty()) {
-                YahooFinanceQuoteSummaryResponse.Result result = summary.getQuoteSummary().getResult().get(0);
-                
-                if (result.getAssetProfile() != null) {
-                    YahooFinanceQuoteSummaryResponse.AssetProfile profile = result.getAssetProfile();
-                    if (profile.getSector() != null) stock.setSector(profile.getSector());
-                    if (profile.getIndustry() != null) stock.setIndustry(profile.getIndustry());
-                    if (profile.getLongBusinessSummary() != null) stock.setDescription(profile.getLongBusinessSummary());
+        try {
+            yahooFinanceService.getQuoteSummary(stock.getSymbol()).ifPresent(summary -> {
+                if (summary.getQuoteSummary() != null && summary.getQuoteSummary().getResult() != null && !summary.getQuoteSummary().getResult().isEmpty()) {
+                    YahooFinanceQuoteSummaryResponse.Result result = summary.getQuoteSummary().getResult().get(0);
                     
-                    if (profile.getWebsite() != null && (stock.getLogoUrl() == null || stock.getLogoUrl().isEmpty())) {
-                        String domain = profile.getWebsite()
-                                .replace("http://", "")
-                                .replace("https://", "")
-                                .replace("www.", "")
-                                .split("/")[0];
-                        stock.setLogoUrl("https://logo.clearbit.com/" + domain);
+                    if (result.getAssetProfile() != null) {
+                        YahooFinanceQuoteSummaryResponse.AssetProfile profile = result.getAssetProfile();
+                        if (profile.getSector() != null) stock.setSector(profile.getSector());
+                        if (profile.getIndustry() != null) stock.setIndustry(profile.getIndustry());
+                        if (profile.getLongBusinessSummary() != null) stock.setDescription(profile.getLongBusinessSummary());
+                        
+                        if (profile.getWebsite() != null && (stock.getLogoUrl() == null || stock.getLogoUrl().isEmpty())) {
+                            String domain = profile.getWebsite()
+                                    .replace("http://", "")
+                                    .replace("https://", "")
+                                    .replace("www.", "")
+                                    .split("/")[0];
+                            stock.setLogoUrl("https://logo.clearbit.com/" + domain);
+                        }
                     }
                 }
-                
-                if (result.getCalendarEvents() != null && result.getCalendarEvents().getExDividendDate() != null) {
-                    // This is just an example of what else we could enrich
-                    log.debug("Found dividend date for {}: {}", stock.getSymbol(), result.getCalendarEvents().getExDividendDate().getFmt());
-                }
-            }
-        });
+            });
+        } catch (Exception e) {
+            log.warn("Could not enrich details for {}: {}", stock.getSymbol(), e.getMessage());
+        }
     }
     
-    /**
-     * Enrichit une liste de stocks avec les vraies données de prix
-     */
     public List<Stock> enrichStocksWithRealPrices(List<Stock> stocks) {
+        if (stocks == null) return List.of();
         return stocks.stream()
                 .map(this::enrichStockWithRealPrice)
                 .toList();

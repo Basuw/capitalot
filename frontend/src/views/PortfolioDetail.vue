@@ -566,7 +566,7 @@ async function fetchHistoricalPrice() {
   try {
     // Convert datetime-local to ISO string for API
     const date = new Date(stockForm.value.purchaseDate).toISOString()
-    const response = await api.get(`/stocks/${selectedStock.value.symbol}/historical-price`, {
+    const response = await api.get(`/stocks/info/${selectedStock.value.symbol}/historical-price`, {
       params: { date }
     })
     stockForm.value.purchasePrice = response.data.price || 0

@@ -76,6 +76,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { usePreferencesStore } from '../stores/preferences'
 import api from '../services/api'
 
 const router = useRouter()
@@ -116,6 +117,11 @@ async function handleRegister() {
       lastName: response.data.lastName
     }
     authStore.setAuth(response.data.token, user)
+    
+    // Load preferences immediately after registration
+    const preferencesStore = usePreferencesStore()
+    await preferencesStore.loadPreferences()
+    
     router.push('/')
   } catch (e) {
     error.value = e.response?.data?.message || 'Registration failed. Please try again.'

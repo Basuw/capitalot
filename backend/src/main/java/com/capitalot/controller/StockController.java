@@ -32,29 +32,26 @@ public class StockController {
         return ResponseEntity.ok(stockSearchService.getPopularStocks());
     }
     
-    @GetMapping("/{symbol}/price")
+    // On utilise un préfixe /info/ pour isoler les requêtes sur un symbole spécifique
+    // Cela évite que "AAPL/history" ne soit matché par "{symbol}"
+    @GetMapping("/info/{symbol:.+}")
+    public ResponseEntity<Stock> getStock(@PathVariable String symbol) {
+        return ResponseEntity.ok(stockSearchService.getStockBySymbol(symbol));
+    }
+
+    @GetMapping("/info/{symbol:.+}/price")
     public ResponseEntity<StockPriceResponse> getStockPrice(@PathVariable String symbol) {
         return ResponseEntity.ok(stockPriceService.getStockPrice(symbol));
     }
     
-    @GetMapping("/{symbol}/history")
+    @GetMapping("/info/{symbol:.+}/history")
     public ResponseEntity<List<PricePointDto>> getStockHistory(
             @PathVariable String symbol,
             @RequestParam(required = false, defaultValue = "1M") String period) {
         return ResponseEntity.ok(stockPriceService.getStockHistory(symbol, period));
     }
     
-    @GetMapping("/{symbol}")
-    public ResponseEntity<Stock> getStock(@PathVariable String symbol) {
-        return ResponseEntity.ok(stockSearchService.getStockBySymbol(symbol));
-    }
-    
-    @GetMapping("/{symbol}/price-history")
-    public ResponseEntity<List<PricePointDto>> getPriceHistory(@PathVariable String symbol) {
-        return ResponseEntity.ok(stockPriceService.getPriceHistory(symbol));
-    }
-    
-    @GetMapping("/{symbol}/metrics")
+    @GetMapping("/info/{symbol:.+}/metrics")
     public ResponseEntity<StockPerformanceMetrics> getStockMetrics(
             @PathVariable String symbol,
             @RequestParam(required = false, defaultValue = "1M") String period,
@@ -62,7 +59,7 @@ public class StockController {
         return ResponseEntity.ok(stockMetricsService.calculateMetrics(symbol, period, benchmark));
     }
     
-    @GetMapping("/{symbol}/historical-price")
+    @GetMapping("/info/{symbol:.+}/historical-price")
     public ResponseEntity<?> getHistoricalPrice(
             @PathVariable String symbol,
             @RequestParam String date) {

@@ -48,7 +48,7 @@ app:
   
   stock-api:
     finnhub:
-      api-key: ${FINNHUB_API_KEY:}
+      api-key: ${FINNHUB_API_KEY:d6t5ithr01qoqoisakf0d6t5ithr01qoqoisakfg}
     alpha-vantage:
       api-keys: ${ALPHA_VANTAGE_API_KEYS:}
 

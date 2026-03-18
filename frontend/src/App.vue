@@ -12,13 +12,21 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from './stores/auth'
+import { usePreferencesStore } from './stores/preferences'
 import Navbar from './components/Navbar.vue'
 
 const route = useRoute()
 const authStore = useAuthStore()
+const preferencesStore = usePreferencesStore()
+
+onMounted(async () => {
+  if (authStore.isAuthenticated) {
+    await preferencesStore.loadPreferences()
+  }
+})
 
 const showNavbar = computed(() => {
   const publicRoutes = ['/login', '/register']

@@ -1,5 +1,6 @@
 package com.capitalot.service;
 
+import com.capitalot.dto.FinnhubSearchResponse;
 import com.capitalot.dto.yahoofinance.YahooFinanceSearchResponse;
 import com.capitalot.model.Stock;
 import com.capitalot.repository.StockRepository;
@@ -7,9 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -20,70 +19,81 @@ public class StockSearchService {
     private final StockRepository stockRepository;
     private final StockEnrichmentService stockEnrichmentService;
     private final YahooFinanceService yahooFinanceService;
-    private final AlphaVantageService alphaVantageService;
     private final FinnhubService finnhubService;
     private final Random random = new Random();
     
     public List<Stock> searchStocks(String query) {
-        List<Stock> stocks = new java.util.ArrayList<>();
         if (query == null || query.trim().isEmpty()) {
-            stocks = stockRepository.findPopularStocks();
-        } else {
-            // 1. Chercher d'abord dans la base de données locale pour la rapidité
-            stocks = new java.util.ArrayList<>(stockRepository.searchStocks(query));
-            
-            // 2. Si on a peu de résultats, on tente d'abord Finnhub (souvent plus fiable pour la recherche simple)
-            if (stocks.size() < 5) {
-                log.info("Searching Finnhub API for query: {}", query);
-                var finnhubResults = finnhubService.search(query);
-                
-                if (finnhubResults.isPresent() && finnhubResults.get().getResult() != null && !finnhubResults.get().getResult().isEmpty()) {
-                    List<Stock> apiStocks = finnhubResults.get().getResult().stream()
-                            .map(this::convertFinnhubResultToStock)
-                            .collect(Collectors.toList());
-                    
-                    saveNewStocks(apiStocks, stocks);
-                    log.info("Found {} stocks from Finnhub", apiStocks.size());
-                } else {
-                    // 3. FALLBACK 1: Alpha Vantage
-                    log.info("Finnhub failed or no results, falling back to Alpha Vantage for query: {}", query);
-                    var avResults = alphaVantageService.search(query);
-                    
-                    if (avResults.isPresent() && avResults.get().getBestMatches() != null && !avResults.get().getBestMatches().isEmpty()) {
-                        List<Stock> apiStocks = avResults.get().getBestMatches().stream()
-                                .map(this::convertAlphaVantageMatchToStock)
-                                .collect(Collectors.toList());
-                        
-                        saveNewStocks(apiStocks, stocks);
-                        log.info("Found {} stocks from Alpha Vantage fallback", apiStocks.size());
-                    } else {
-                        // 4. FALLBACK 2: Yahoo Finance
-                        log.info("Alpha Vantage failed or no results, falling back to Yahoo Finance for query: {}", query);
-                        var yahooResults = yahooFinanceService.search(query);
-                        
-                        if (yahooResults.isPresent() && yahooResults.get().getQuotes() != null) {
-                            List<Stock> apiStocks = yahooResults.get().getQuotes().stream()
-                                    .filter(quote -> "EQUITY".equalsIgnoreCase(quote.getQuoteType()) || 
-                                                   "ETF".equalsIgnoreCase(quote.getQuoteType()))
-                                    .map(this::convertYahooQuoteToStock)
-                                    .collect(Collectors.toList());
-                            
-                            saveNewStocks(apiStocks, stocks);
-                            log.info("Found {} stocks from Yahoo Finance fallback", apiStocks.size());
+            return getPopularStocks();
+        }
+
+        query = query.trim();
+        log.info("Starting multi-source search for: {}", query);
+        
+        // Map pour éviter les doublons (Clé = Symbol)
+        Map<String, Stock> combinedResults = new LinkedHashMap<>();
+        
+        // 1. Rechercher en base de données locale
+        List<Stock> localStocks = stockRepository.searchStocks(query);
+        localStocks.forEach(s -> combinedResults.put(s.getSymbol().toUpperCase(), s));
+        
+        // 2. Si peu de résultats, interroger Finnhub
+        if (combinedResults.size() < 10) {
+            try {
+                var finnhubOpt = finnhubService.search(query);
+                if (finnhubOpt.isPresent() && finnhubOpt.get().getResult() != null) {
+                    for (var result : finnhubOpt.get().getResult()) {
+                        String symbol = result.getSymbol().toUpperCase();
+                        if (!combinedResults.containsKey(symbol)) {
+                            Stock stock = convertFinnhubResultToStock(result);
+                            combinedResults.put(symbol, stock);
                         }
                     }
                 }
+            } catch (Exception e) {
+                log.warn("Finnhub search failed: {}", e.getMessage());
             }
         }
         
-        // 5. Enrichir TOUS les résultats avec les prix temps réel
-        return stockEnrichmentService.enrichStocksWithRealPrices(stocks);
+        // 3. Compléter avec Yahoo Finance (très bon pour les noms d'entreprise et indices)
+        if (combinedResults.size() < 15) {
+            try {
+                var yahooOpt = yahooFinanceService.search(query);
+                if (yahooOpt.isPresent() && yahooOpt.get().getQuotes() != null) {
+                    for (var quote : yahooOpt.get().getQuotes()) {
+                        String symbol = quote.getSymbol().toUpperCase();
+                        if (!combinedResults.containsKey(symbol)) {
+                            Stock stock = convertYahooQuoteToStock(quote);
+                            combinedResults.put(symbol, stock);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Yahoo search failed: {}", e.getMessage());
+            }
+        }
+        
+        // 4. Sauvegarder les nouvelles actions en base pour plus tard
+        List<Stock> allStocks = new ArrayList<>(combinedResults.values());
+        saveNewStocksToDb(allStocks);
+        
+        // 5. Enrichir avec les prix temps réel
+        return stockEnrichmentService.enrichStocksWithRealPrices(allStocks);
     }
 
-    private Stock convertFinnhubResultToStock(com.capitalot.dto.FinnhubSearchResponse.Result result) {
-        double longPct = 50.0 + random.nextDouble() * 40.0;
-        double shortPct = 100.0 - longPct;
-        
+    private void saveNewStocksToDb(List<Stock> stocks) {
+        for (Stock stock : stocks) {
+            if (stock.getId() == null && !stockRepository.existsBySymbol(stock.getSymbol())) {
+                try {
+                    stockRepository.save(stock);
+                } catch (Exception e) {
+                    log.error("Could not save stock {}: {}", stock.getSymbol(), e.getMessage());
+                }
+            }
+        }
+    }
+
+    private Stock convertFinnhubResultToStock(FinnhubSearchResponse.Result result) {
         return Stock.builder()
                 .symbol(result.getSymbol())
                 .name(result.getDescription())
@@ -96,40 +106,20 @@ public class StockSearchService {
                 .description(result.getDescription())
                 .annualDividend(0.0)
                 .risk(5.0)
-                .longPercentage(longPct)
-                .shortPercentage(shortPct)
-                .marketScore(70.0 + random.nextDouble() * 30.0)
+                .longPercentage(50.0 + random.nextDouble() * 30)
+                .shortPercentage(20.0 + random.nextDouble() * 10)
+                .marketScore(7.0 + random.nextDouble() * 2)
                 .build();
     }
 
-    private void saveNewStocks(List<Stock> apiStocks, List<Stock> currentList) {
-        for (Stock apiStock : apiStocks) {
-            if (!stockRepository.existsBySymbol(apiStock.getSymbol())) {
-                try {
-                    stockRepository.save(apiStock);
-                    if (currentList.stream().noneMatch(s -> s.getSymbol().equalsIgnoreCase(apiStock.getSymbol()))) {
-                        currentList.add(apiStock);
-                    }
-                } catch (Exception e) {
-                    log.error("Error saving stock {}: {}", apiStock.getSymbol(), e.getMessage());
-                }
-            } else if (currentList.stream().noneMatch(s -> s.getSymbol().equalsIgnoreCase(apiStock.getSymbol()))) {
-                stockRepository.findBySymbol(apiStock.getSymbol()).ifPresent(currentList::add);
-            }
-        }
-    }
-
-    private Stock convertYahooQuoteToStock(com.capitalot.dto.yahoofinance.YahooFinanceSearchResponse.Quote quote) {
-        double longPct = 50.0 + random.nextDouble() * 40.0;
-        double shortPct = 100.0 - longPct;
-        
+    private Stock convertYahooQuoteToStock(YahooFinanceSearchResponse.Quote quote) {
         String name = quote.getLongname() != null ? quote.getLongname() : 
                      (quote.getShortname() != null ? quote.getShortname() : quote.getSymbol());
         
         return Stock.builder()
                 .symbol(quote.getSymbol())
                 .name(name)
-                .exchange(quote.getExchange())
+                .exchange(quote.getExchange() != null ? quote.getExchange() : "Unknown")
                 .currency("USD")
                 .sector(quote.getSector() != null ? quote.getSector() : "Unknown")
                 .industry(quote.getIndustry() != null ? quote.getIndustry() : "Unknown")
@@ -138,27 +128,51 @@ public class StockSearchService {
                 .description(name)
                 .annualDividend(0.0)
                 .risk(5.0)
-                .longPercentage(longPct)
-                .shortPercentage(shortPct)
-                .marketScore(70.0 + random.nextDouble() * 30.0)
+                .longPercentage(50.0 + random.nextDouble() * 30)
+                .shortPercentage(20.0 + random.nextDouble() * 10)
+                .marketScore(7.0 + random.nextDouble() * 2)
                 .build();
     }
     
     public List<Stock> getPopularStocks() {
         List<Stock> stocks = stockRepository.findPopularStocks();
-        // Enrichir avec les vrais prix depuis Yahoo Finance
         return stockEnrichmentService.enrichStocksWithRealPrices(stocks);
     }
     
     public Stock getStockBySymbol(String symbol) {
+        log.info("Fetching details for symbol: {}", symbol);
+        
         Stock stock = stockRepository.findBySymbol(symbol.toUpperCase())
-            .orElseThrow(() -> new RuntimeException("Stock not found: " + symbol));
+            .orElseGet(() -> {
+                log.info("Stock {} not found in database, searching online...", symbol);
+                // On essaie Yahoo d'abord pour les détails riches
+                var yahooResults = yahooFinanceService.search(symbol);
+                if (yahooResults.isPresent() && yahooResults.get().getQuotes() != null) {
+                    return yahooResults.get().getQuotes().stream()
+                            .filter(q -> q.getSymbol().equalsIgnoreCase(symbol))
+                            .findFirst()
+                            .map(this::convertYahooQuoteToStock)
+                            .map(stockRepository::save)
+                            .orElseGet(() -> {
+                                // Fallback Finnhub
+                                var finnhubResults = finnhubService.search(symbol);
+                                return finnhubResults.flatMap(res -> res.getResult().stream()
+                                        .filter(r -> r.getSymbol().equalsIgnoreCase(symbol))
+                                        .findFirst()
+                                        .map(this::convertFinnhubResultToStock)
+                                        .map(stockRepository::save))
+                                        .orElseThrow(() -> new RuntimeException("Stock non trouvé: " + symbol));
+                            });
+                }
+                throw new RuntimeException("Stock non trouvé: " + symbol);
+            });
         
-        // Enrichir avec le vrai prix depuis Yahoo Finance
         stockEnrichmentService.enrichStockWithRealPrice(stock);
-        
-        // Fetch news specifically for detail view
-        stock.setNews(yahooFinanceService.getNewsForSymbol(symbol));
+        try {
+            stock.setNews(yahooFinanceService.getNewsForSymbol(symbol));
+        } catch (Exception e) {
+            stock.setNews(Collections.emptyList());
+        }
         
         return stock;
     }
@@ -166,25 +180,15 @@ public class StockSearchService {
     public void initializePopularStocks() {
         if (stockRepository.count() == 0) {
             List<Stock> popularStocks = Arrays.asList(
-                createStock("AAPL", "Apple Inc.", "NASDAQ", "Technology", "Consumer Electronics", true, "Apple designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories worldwide.", 0.96, 4.5),
-                createStock("MSFT", "Microsoft Corporation", "NASDAQ", "Technology", "Software", true, "Microsoft develops, licenses, and supports software, services, devices, and solutions worldwide.", 0.75, 3.2),
-                createStock("GOOGL", "Alphabet Inc.", "NASDAQ", "Technology", "Internet Services", true, "Alphabet provides various products and services in the United States, Europe, the Middle East, Africa, the Asia-Pacific, Canada, and Latin America.", 0.0, 6.8),
-                createStock("AMZN", "Amazon.com Inc.", "NASDAQ", "Consumer Cyclical", "Internet Retail", true, "Amazon engages in the retail sale of consumer products and subscriptions in North America and internationally.", 0.0, 5.5),
-                createStock("TSLA", "Tesla Inc.", "NASDAQ", "Consumer Cyclical", "Auto Manufacturers", true, "Tesla designs, develops, manufactures, leases, and sells electric vehicles, and energy generation and storage systems.", 0.0, 8.2),
-                createStock("NVDA", "NVIDIA Corporation", "NASDAQ", "Technology", "Semiconductors", true, "NVIDIA provides graphics, and compute and networking solutions in the United States, Taiwan, China, and internationally.", 0.03, 7.1),
-                createStock("META", "Meta Platforms Inc.", "NASDAQ", "Technology", "Internet Services", true, "Meta Platforms builds technologies that help people connect, find communities, and grow businesses.", 0.0, 6.5),
-                createStock("BRK.B", "Berkshire Hathaway Inc.", "NYSE", "Financial", "Insurance", true, "Berkshire Hathaway provides insurance and reinsurance, utilities and energy, freight rail transportation, and other services.", 0.0, 4.0),
-                createStock("V", "Visa Inc.", "NYSE", "Financial", "Credit Services", true, "Visa operates as a payments technology company worldwide.", 0.87, 3.8),
-                createStock("JPM", "JPMorgan Chase & Co.", "NYSE", "Financial", "Banks", true, "JPMorgan Chase provides various financial services worldwide.", 2.62, 5.2)
+                createStock("AAPL", "Apple Inc.", "NASDAQ", "Technology", "Consumer Electronics", true, "Apple designs, manufactures, and markets smartphones...", 0.96, 4.5),
+                createStock("MSFT", "Microsoft Corporation", "NASDAQ", "Technology", "Software", true, "Microsoft develops, licenses, and supports software...", 0.75, 3.2),
+                createStock("NFLX", "Netflix Inc.", "NASDAQ", "Communication Services", "Entertainment", true, "Netflix is an American subscription streaming service...", 0.0, 6.5)
             );
             stockRepository.saveAll(popularStocks);
         }
     }
     
     private Stock createStock(String symbol, String name, String exchange, String sector, String industry, boolean isPopular, String description, double annualDividend, double risk) {
-        double longPct = 50.0 + random.nextDouble() * 40.0;
-        double shortPct = 100.0 - longPct;
-        
         return Stock.builder()
             .symbol(symbol)
             .name(name)
@@ -197,31 +201,9 @@ public class StockSearchService {
             .description(description)
             .annualDividend(annualDividend)
             .risk(risk)
-            .longPercentage(longPct)
-            .shortPercentage(shortPct)
-            .marketScore(70.0 + random.nextDouble() * 30.0)
+            .longPercentage(60.0)
+            .shortPercentage(40.0)
+            .marketScore(8.5)
             .build();
-    }
-    
-    private Stock convertAlphaVantageMatchToStock(com.capitalot.dto.AlphaVantageSearchResponse.Match match) {
-        double longPct = 50.0 + random.nextDouble() * 40.0;
-        double shortPct = 100.0 - longPct;
-        
-        return Stock.builder()
-                .symbol(match.getSymbol())
-                .name(match.getName())
-                .exchange(match.getRegion())
-                .currency(match.getCurrency())
-                .sector("Unknown")
-                .industry("Unknown")
-                .isPopular(false)
-                .stockType(com.capitalot.model.StockType.STOCK)
-                .description(match.getName())
-                .annualDividend(0.0)
-                .risk(5.0)
-                .longPercentage(longPct)
-                .shortPercentage(shortPct)
-                .marketScore(70.0 + random.nextDouble() * 30.0)
-                .build();
     }
 }

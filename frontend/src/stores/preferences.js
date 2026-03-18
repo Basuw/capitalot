@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import axios from 'axios'
+import api from '../services/api'
 import { useAuthStore } from './auth'
 import { formatPrice, formatPriceShort, getCurrencySymbol } from '../services/currency'
 
@@ -27,11 +27,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
     error.value = null
 
     try {
-      const response = await axios.get('/api/user/preferences', {
-        headers: {
-          'Authorization': `Bearer ${authStore.token}`
-        }
-      })
+      const response = await api.get('/user/preferences')
       preferences.value = response.data
     } catch (err) {
       console.error('Failed to load preferences:', err)
@@ -50,11 +46,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
     error.value = null
 
     try {
-      const response = await axios.put('/api/user/preferences', updates, {
-        headers: {
-          'Authorization': `Bearer ${authStore.token}`
-        }
-      })
+      const response = await api.put('/user/preferences', updates)
       preferences.value = response.data
       return true
     } catch (err) {

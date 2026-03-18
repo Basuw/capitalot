@@ -50,6 +50,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { usePreferencesStore } from '../stores/preferences'
 import api from '../services/api'
 
 const router = useRouter()
@@ -76,6 +77,11 @@ async function handleLogin() {
       lastName: response.data.lastName
     }
     authStore.setAuth(response.data.token, user)
+    
+    // Load preferences immediately after login
+    const preferencesStore = usePreferencesStore()
+    await preferencesStore.loadPreferences()
+    
     router.push('/')
   } catch (e) {
     error.value = e.response?.data?.message || 'Login failed. Please try again.'
