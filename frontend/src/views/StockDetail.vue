@@ -9,8 +9,18 @@
           Rafraîchir
         </button>
       </div>
-      <h1>{{ stockInfo?.name || symbol }}</h1>
-      <p v-if="stockInfo" class="stock-symbol-subtitle">{{ symbol }} • {{ stockInfo.exchange }}</p>
+      <div class="header-main-title">
+        <div v-if="stockInfo?.logoUrl" class="stock-logo-container">
+          <img :src="stockInfo.logoUrl" :alt="stockInfo.name" @error="handleLogoError" class="stock-logo-img" />
+        </div>
+        <div v-else class="stock-icon-placeholder">
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+        </div>
+        <div class="header-titles">
+          <h1>{{ stockInfo?.name || symbol }}</h1>
+          <p v-if="stockInfo" class="stock-symbol-subtitle">{{ symbol }} • {{ stockInfo.exchange }}</p>
+        </div>
+      </div>
       
       <div v-if="stockInfo" class="main-info-grid">
          <div class="info-card price-card">
@@ -195,11 +205,26 @@
       <div v-else class="no-data">No price history available</div>
     </div>
 
-    <div class="news-section">
-      <h2>Latest News</h2>
-      <div class="news-placeholder">
-        <p>News integration coming soon...</p>
+    <div v-if="stockInfo?.news && stockInfo.news.length" class="news-section">
+      <h2>News & Media</h2>
+      <div class="news-list">
+        <a v-for="item in stockInfo.news" :key="item.uuid" :href="item.link" target="_blank" class="news-item">
+          <div v-if="item.thumbnail && item.thumbnail.resolutions && item.thumbnail.resolutions.length" class="news-thumbnail">
+            <img :src="item.thumbnail.resolutions[0].url" :alt="item.title" />
+          </div>
+          <div class="news-content">
+            <h3 class="news-title">{{ item.title }}</h3>
+            <div class="news-meta">
+              <span class="news-publisher">{{ item.publisher }}</span>
+              <span class="news-dot">•</span>
+              <span class="news-time">{{ formatNewsTime(item.providerPublishTime) }}</span>
+            </div>
+          </div>
+        </a>
       </div>
+    </div>
+    <div v-else-if="stockInfo" class="news-placeholder">
+      No recent news available for this stock.
     </div>
   </div>
 </template>
@@ -223,6 +248,21 @@ const loading = ref(true)
 const refreshing = ref(false)
 const error = ref(null)
 const selectedPeriod = ref('1M')
+
+const handleLogoError = (e) => {
+  e.target.style.display = 'none'
+}
+
+const formatNewsTime = (timestamp) => {
+  if (!timestamp) return ''
+  const date = new Date(timestamp * 1000)
+  const now = new Date()
+  const diffInHours = Math.floor((now - date) / (1000 * 60 * 60))
+  
+  if (diffInHours < 1) return 'Just now'
+  if (diffInHours < 24) return `${diffInHours}h ago`
+  return date.toLocaleDateString()
+}
 
 const periods = [
   { label: '1D', value: '1D' },
@@ -359,6 +399,116 @@ onMounted(() => {
 
 .header-section {
   margin-bottom: 2rem;
+}
+
+.header-main-title {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.stock-logo-container {
+  width: 64px;
+  height: 64px;
+  background: white;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid #eee;
+}
+
+.stock-logo-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  padding: 4px;
+}
+
+.stock-icon-placeholder {
+  width: 64px;
+  height: 64px;
+  background: #f3f4f6;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+}
+
+.header-titles h1 {
+  margin: 0;
+  font-size: 2rem;
+  color: #1e1e2e;
+}
+
+.news-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.news-item {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 10px;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+
+.news-item:hover {
+  background: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border-color: #667eea;
+}
+
+.news-thumbnail {
+  width: 120px;
+  height: 80px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.news-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.news-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  flex-grow: 1;
+}
+
+.news-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem 0;
+  line-height: 1.4;
+  color: #1e1e2e;
+}
+
+.news-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.news-dot {
+  color: #d1d5db;
 }
 
 .header-top {

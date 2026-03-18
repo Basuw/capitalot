@@ -106,7 +106,8 @@
               >
                 <td class="symbol-cell">
                   <div class="stock-icon-small">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                    <img v-if="stock.logoUrl" :src="stock.logoUrl" :alt="stock.symbol" @error="$event.target.style.display = 'none'" class="stock-logo-tiny" />
+                    <svg v-else xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
                   </div>
                   <strong>{{ stock.symbol }}</strong>
                 </td>
@@ -629,13 +630,23 @@ input[type="text"]:focus {
 .stock-icon-small {
   width: 36px;
   height: 36px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: white;
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: #667eea;
   flex-shrink: 0;
+  border: 1px solid #e0e0e0;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.stock-logo-tiny {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  padding: 2px;
 }
 
 .last-update-time {

@@ -1,10 +1,12 @@
 package com.capitalot.model;
 
+import com.capitalot.dto.yahoofinance.YahooFinanceSearchResponse;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
@@ -33,6 +35,8 @@ public class Stock {
     private String sector;
     
     private String industry;
+    
+    private String logoUrl;
     
     @Column(nullable = false)
     private Boolean isPopular = false;
@@ -83,6 +87,9 @@ public class Stock {
 
     @Transient
     private LocalDateTime lastPriceUpdate;
+
+    @Transient
+    private List<YahooFinanceSearchResponse.News> news;
     
     @ManyToMany
     @JoinTable(

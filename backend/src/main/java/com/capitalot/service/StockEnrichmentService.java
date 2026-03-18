@@ -57,6 +57,15 @@ public class StockEnrichmentService {
                     if (profile.getSector() != null) stock.setSector(profile.getSector());
                     if (profile.getIndustry() != null) stock.setIndustry(profile.getIndustry());
                     if (profile.getLongBusinessSummary() != null) stock.setDescription(profile.getLongBusinessSummary());
+                    
+                    if (profile.getWebsite() != null && (stock.getLogoUrl() == null || stock.getLogoUrl().isEmpty())) {
+                        String domain = profile.getWebsite()
+                                .replace("http://", "")
+                                .replace("https://", "")
+                                .replace("www.", "")
+                                .split("/")[0];
+                        stock.setLogoUrl("https://logo.clearbit.com/" + domain);
+                    }
                 }
                 
                 if (result.getCalendarEvents() != null && result.getCalendarEvents().getExDividendDate() != null) {

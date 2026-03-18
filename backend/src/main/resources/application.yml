@@ -50,7 +50,7 @@ app:
     finnhub:
       api-key: ${FINNHUB_API_KEY:}
     alpha-vantage:
-      api-key: ${ALPHA_VANTAGE_API_KEY:}
+      api-keys: ${ALPHA_VANTAGE_API_KEYS:}
 
   cache:
     stock-quotes-ttl: 60

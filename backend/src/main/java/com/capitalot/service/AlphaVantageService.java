@@ -8,50 +8,77 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 @Service
 @Slf4j
 public class AlphaVantageService {
 
-    @Value("${app.stock-api.alpha-vantage.api-key}")
-    private String apiKey;
+    private final List<String> apiKeys;
+    private int currentKeyIndex = 0;
 
     private static final String BASE_URL = "https://www.alphavantage.co/query";
     private final RestTemplate restTemplate;
 
-    public AlphaVantageService() {
+    public AlphaVantageService(@Value("${app.stock-api.alpha-vantage.api-keys:}") String keysString) {
         this.restTemplate = new RestTemplate();
+        if (keysString != null && !keysString.isEmpty()) {
+            this.apiKeys = Arrays.asList(keysString.split(","));
+        } else {
+            this.apiKeys = new ArrayList<>();
+        }
     }
 
     @Cacheable(value = "symbolSearch", key = "#query", unless = "#result == null")
     public Optional<AlphaVantageSearchResponse> search(String query) {
-        if (apiKey == null || apiKey.isEmpty()) {
-            log.warn("Alpha Vantage API key is missing. Skipping search.");
+        if (apiKeys.isEmpty()) {
+            log.warn("No Alpha Vantage API keys configured.");
             return Optional.empty();
         }
 
-        try {
-            String url = UriComponentsBuilder.fromHttpUrl(BASE_URL)
-                    .queryParam("function", "SYMBOL_SEARCH")
-                    .queryParam("keywords", query)
-                    .queryParam("apikey", apiKey)
-                    .toUriString();
+        // Try all available keys in rotation if one fails
+        for (int i = 0; i < apiKeys.size(); i++) {
+            String apiKey = apiKeys.get(currentKeyIndex);
+            try {
+                String url = UriComponentsBuilder.fromHttpUrl(BASE_URL)
+                        .queryParam("function", "SYMBOL_SEARCH")
+                        .queryParam("keywords", query)
+                        .queryParam("apikey", apiKey)
+                        .toUriString();
 
-            log.info("Searching Alpha Vantage for query: {}", query);
-            AlphaVantageSearchResponse response = restTemplate.getForObject(url, AlphaVantageSearchResponse.class);
+                log.info("Searching Alpha Vantage with key index {} for query: {}", currentKeyIndex, query);
+                AlphaVantageSearchResponse response = restTemplate.getForObject(url, AlphaVantageSearchResponse.class);
 
-            if (response != null && response.getBestMatches() != null && !response.getBestMatches().isEmpty()) {
-                log.info("Found {} results for query: {} in Alpha Vantage", response.getBestMatches().size(), query);
-                return Optional.of(response);
+                if (response != null) {
+                    if ((response.getNote() != null && response.getNote().contains("rate limit")) || 
+                        (response.getInformation() != null && response.getInformation().contains("rate limit"))) {
+                        log.warn("Alpha Vantage rate limit hit for key index {}. Rotating...", currentKeyIndex);
+                        rotateKey();
+                        continue; // Try next key
+                    }
+                    
+                    if (response.getBestMatches() != null) {
+                        return Optional.of(response);
+                    }
+                }
+
+            } catch (Exception e) {
+                log.error("Error searching Alpha Vantage with key index {}: {}", currentKeyIndex, e.getMessage());
+                // Rotate to next key for next attempt
+                rotateKey();
             }
+        }
 
-            log.warn("No results found for query: {} in Alpha Vantage", query);
-            return Optional.empty();
+        return Optional.empty();
+    }
 
-        } catch (Exception e) {
-            log.error("Error searching Alpha Vantage for query: {}", query, e);
-            return Optional.empty();
+    private void rotateKey() {
+        if (!apiKeys.isEmpty()) {
+            currentKeyIndex = (currentKeyIndex + 1) % apiKeys.size();
+            log.info("Rotated to Alpha Vantage API key index {}", currentKeyIndex);
         }
     }
 }

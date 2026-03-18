@@ -50,6 +50,9 @@ public class YahooFinanceQuoteSummaryResponse {
         
         @JsonProperty("fullTimeEmployees")
         private Integer fullTimeEmployees;
+
+        @JsonProperty("website")
+        private String website;
     }
     
     @Data

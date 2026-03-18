@@ -9,6 +9,12 @@ public class AlphaVantageSearchResponse {
     @JsonProperty("bestMatches")
     private List<Match> bestMatches;
 
+    @JsonProperty("Information")
+    private String information;
+
+    @JsonProperty("Note")
+    private String note;
+
     @Data
     public static class Match {
         @JsonProperty("1. symbol")

@@ -139,6 +139,28 @@ public class YahooFinanceService {
         }
     }
 
+    @Cacheable(value = "yahooFinanceNews", key = "#symbol", unless = "#result == null")
+    public List<YahooFinanceSearchResponse.News> getNewsForSymbol(String symbol) {
+        try {
+            String url = UriComponentsBuilder.fromHttpUrl(BASE_SEARCH_URL)
+                    .queryParam("q", symbol)
+                    .toUriString();
+            
+            log.info("Fetching news for symbol: {}", symbol);
+            YahooFinanceSearchResponse response = fetch(url, YahooFinanceSearchResponse.class);
+            
+            if (response != null && response.getNews() != null) {
+                return response.getNews();
+            }
+            
+            return java.util.Collections.emptyList();
+            
+        } catch (Exception e) {
+            log.error("Error fetching news for symbol: {}", symbol, e);
+            return java.util.Collections.emptyList();
+        }
+    }
+
     private boolean isValidChartResponse(YahooFinanceChartResponse response) {
         return response != null && response.getChart() != null && response.getChart().getResult() != null && 
                !response.getChart().getResult().isEmpty() &&
