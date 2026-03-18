@@ -1,5 +1,6 @@
 package com.capitalot.service;
 
+import com.capitalot.dto.FinnhubProfileResponse;
 import com.capitalot.dto.FinnhubSearchResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,7 +18,8 @@ public class FinnhubService {
     @Value("${app.stock-api.finnhub.api-key:}")
     private String apiKey;
 
-    private static final String BASE_URL = "https://finnhub.io/api/v1/search";
+    private static final String SEARCH_URL = "https://finnhub.io/api/v1/search";
+    private static final String PROFILE_URL = "https://finnhub.io/api/v1/stock/profile2";
     private final RestTemplate restTemplate;
 
     public FinnhubService() {
@@ -32,7 +34,7 @@ public class FinnhubService {
         }
 
         try {
-            String url = UriComponentsBuilder.fromHttpUrl(BASE_URL)
+            String url = UriComponentsBuilder.fromHttpUrl(SEARCH_URL)
                     .queryParam("q", query)
                     .queryParam("token", apiKey)
                     .toUriString();
@@ -50,6 +52,34 @@ public class FinnhubService {
 
         } catch (Exception e) {
             log.error("Error searching Finnhub for query: {}", query, e);
+            return Optional.empty();
+        }
+    }
+
+    @Cacheable(value = "finnhubProfile", key = "#symbol", unless = "#result == null")
+    public Optional<FinnhubProfileResponse> getProfile(String symbol) {
+        if (apiKey == null || apiKey.isEmpty()) {
+            return Optional.empty();
+        }
+
+        try {
+            String url = UriComponentsBuilder.fromHttpUrl(PROFILE_URL)
+                    .queryParam("symbol", symbol)
+                    .queryParam("token", apiKey)
+                    .toUriString();
+
+            log.info("Fetching Finnhub profile for symbol: {}", symbol);
+            FinnhubProfileResponse response = restTemplate.getForObject(url, FinnhubProfileResponse.class);
+
+            if (response != null && response.getTicker() != null && !response.getTicker().isBlank()) {
+                return Optional.of(response);
+            }
+
+            log.warn("No Finnhub profile found for symbol: {}", symbol);
+            return Optional.empty();
+
+        } catch (Exception e) {
+            log.error("Error fetching Finnhub profile for {}: {}", symbol, e.getMessage());
             return Optional.empty();
         }
     }

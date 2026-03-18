@@ -22,10 +22,15 @@ spring:
     caffeine:
       spec: maximumSize=1000,expireAfterWrite=60s
     cache-names:
-      - stockQuotes
-      - dailyTimeSeries
-      - intradayTimeSeries
       - symbolSearch
+      - finnhubSearch
+      - finnhubProfile
+      - yahooFinanceChart
+      - yahooFinanceChartCustom
+      - yahooFinanceSearch
+      - yahooFinanceQuoteSummary
+      - yahooFinanceNews
+      - alphaVantageOverview
   
   security:
     oauth2:

@@ -16,11 +16,15 @@ public class CacheConfig {
     @Bean
     public CacheManager cacheManager() {
         CaffeineCacheManager cacheManager = new CaffeineCacheManager(
-            "stockQuotes", 
-            "dailyTimeSeries", 
-            "intradayTimeSeries", 
             "symbolSearch",
-            "yahooFinanceChart"
+            "finnhubSearch",
+            "finnhubProfile",
+            "yahooFinanceChart",
+            "yahooFinanceChartCustom",
+            "yahooFinanceSearch",
+            "yahooFinanceQuoteSummary",
+            "yahooFinanceNews",
+            "alphaVantageOverview"
         );
         
         cacheManager.setCaffeine(Caffeine.newBuilder()

@@ -1,5 +1,6 @@
 package com.capitalot.service;
 
+import com.capitalot.dto.AlphaVantageOverviewResponse;
 import com.capitalot.dto.AlphaVantageSearchResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -73,6 +74,45 @@ public class AlphaVantageService {
         }
 
         return Optional.empty();
+    }
+
+    @Cacheable(value = "alphaVantageOverview", key = "#symbol", unless = "#result == null")
+    public Optional<AlphaVantageOverviewResponse> getOverview(String symbol) {
+        if (apiKeys.isEmpty()) {
+            log.warn("No Alpha Vantage API keys configured. Skipping overview for {}", symbol);
+            return Optional.empty();
+        }
+
+        String apiKey = apiKeys.get(currentKeyIndex);
+        try {
+            String url = UriComponentsBuilder.fromHttpUrl(BASE_URL)
+                    .queryParam("function", "OVERVIEW")
+                    .queryParam("symbol", symbol)
+                    .queryParam("apikey", apiKey)
+                    .toUriString();
+
+            log.info("Fetching Alpha Vantage overview for symbol: {}", symbol);
+            AlphaVantageOverviewResponse response = restTemplate.getForObject(url, AlphaVantageOverviewResponse.class);
+
+            if (response != null) {
+                if ((response.getNote() != null && response.getNote().contains("rate limit")) ||
+                    (response.getInformation() != null && response.getInformation().contains("rate limit"))) {
+                    log.warn("Alpha Vantage rate limit hit for OVERVIEW {}. Rotating key.", symbol);
+                    rotateKey();
+                    return Optional.empty();
+                }
+                if (response.getSymbol() != null && !response.getSymbol().isBlank()) {
+                    return Optional.of(response);
+                }
+            }
+
+            log.warn("No Alpha Vantage overview found for symbol: {}", symbol);
+            return Optional.empty();
+
+        } catch (Exception e) {
+            log.error("Error fetching Alpha Vantage overview for {}: {}", symbol, e.getMessage());
+            return Optional.empty();
+        }
     }
 
     private void rotateKey() {

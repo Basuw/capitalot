@@ -29,55 +29,72 @@ public class StockSearchService {
 
         query = query.trim();
         log.info("Starting multi-source search for: {}", query);
-        
+
         // Map pour éviter les doublons (Clé = Symbol)
         Map<String, Stock> combinedResults = new LinkedHashMap<>();
-        
+
         // 1. Rechercher en base de données locale
         List<Stock> localStocks = stockRepository.searchStocks(query);
         localStocks.forEach(s -> combinedResults.put(s.getSymbol().toUpperCase(), s));
-        
-        // 2. Si peu de résultats, interroger Finnhub
-        if (combinedResults.size() < 10) {
-            try {
-                var finnhubOpt = finnhubService.search(query);
-                if (finnhubOpt.isPresent() && finnhubOpt.get().getResult() != null) {
-                    for (var result : finnhubOpt.get().getResult()) {
-                        String symbol = result.getSymbol().toUpperCase();
-                        if (!combinedResults.containsKey(symbol)) {
-                            Stock stock = convertFinnhubResultToStock(result);
-                            combinedResults.put(symbol, stock);
-                        }
+
+        // 2. Finnhub est la source principale de recherche (toujours appelé)
+        try {
+            var finnhubOpt = finnhubService.search(query);
+            if (finnhubOpt.isPresent() && finnhubOpt.get().getResult() != null) {
+                for (var result : finnhubOpt.get().getResult()) {
+                    String symbol = result.getSymbol().toUpperCase();
+                    if (!combinedResults.containsKey(symbol)) {
+                        Stock stock = convertFinnhubResultToStock(result);
+                        combinedResults.put(symbol, stock);
                     }
                 }
-            } catch (Exception e) {
-                log.warn("Finnhub search failed: {}", e.getMessage());
+                log.info("Finnhub returned {} results for query: {}", finnhubOpt.get().getResult().size(), query);
             }
+        } catch (Exception e) {
+            log.warn("Finnhub search failed: {}", e.getMessage());
         }
-        
-        // 3. Compléter avec Yahoo Finance (très bon pour les noms d'entreprise et indices)
-        if (combinedResults.size() < 15) {
-            try {
-                var yahooOpt = yahooFinanceService.search(query);
-                if (yahooOpt.isPresent() && yahooOpt.get().getQuotes() != null) {
-                    for (var quote : yahooOpt.get().getQuotes()) {
-                        String symbol = quote.getSymbol().toUpperCase();
-                        if (!combinedResults.containsKey(symbol)) {
-                            Stock stock = convertYahooQuoteToStock(quote);
-                            combinedResults.put(symbol, stock);
+
+        // 3. Yahoo Finance search pour enrichir les résultats (secteur, industrie, nom complet, bourse)
+        try {
+            var yahooOpt = yahooFinanceService.search(query);
+            if (yahooOpt.isPresent() && yahooOpt.get().getQuotes() != null) {
+                for (var quote : yahooOpt.get().getQuotes()) {
+                    String symbol = quote.getSymbol().toUpperCase();
+                    if (combinedResults.containsKey(symbol)) {
+                        // Enrichir le stock Finnhub existant avec les infos Yahoo Finance
+                        Stock existing = combinedResults.get(symbol);
+                        if (quote.getLongname() != null && !quote.getLongname().isBlank()) {
+                            existing.setName(quote.getLongname());
+                            existing.setDescription(quote.getLongname());
+                        } else if (quote.getShortname() != null && !quote.getShortname().isBlank() && "Unknown".equals(existing.getName())) {
+                            existing.setName(quote.getShortname());
+                            existing.setDescription(quote.getShortname());
                         }
+                        if (quote.getSector() != null && !quote.getSector().isBlank()) {
+                            existing.setSector(quote.getSector());
+                        }
+                        if (quote.getIndustry() != null && !quote.getIndustry().isBlank()) {
+                            existing.setIndustry(quote.getIndustry());
+                        }
+                        if (quote.getExchange() != null && !quote.getExchange().isBlank()) {
+                            existing.setExchange(quote.getExchange());
+                        }
+                    } else {
+                        // Ajouter les symboles supplémentaires trouvés par Yahoo Finance
+                        Stock stock = convertYahooQuoteToStock(quote);
+                        combinedResults.put(symbol, stock);
                     }
                 }
-            } catch (Exception e) {
-                log.warn("Yahoo search failed: {}", e.getMessage());
             }
+        } catch (Exception e) {
+            log.warn("Yahoo Finance search failed: {}", e.getMessage());
         }
-        
+
         // 4. Sauvegarder les nouvelles actions en base pour plus tard
         List<Stock> allStocks = new ArrayList<>(combinedResults.values());
         saveNewStocksToDb(allStocks);
-        
-        // 5. Enrichir avec les prix temps réel
+
+        // 5. Enrichir avec les prix temps réel via Yahoo Finance chart API
         return stockEnrichmentService.enrichStocksWithRealPrices(allStocks);
     }
 
@@ -168,6 +185,7 @@ public class StockSearchService {
             });
         
         stockEnrichmentService.enrichStockWithRealPrice(stock);
+        stockEnrichmentService.enrichStockFundamentals(stock);
         try {
             stock.setNews(yahooFinanceService.getNewsForSymbol(symbol));
         } catch (Exception e) {
