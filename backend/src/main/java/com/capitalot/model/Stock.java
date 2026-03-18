@@ -1,6 +1,7 @@
 package com.capitalot.model;
 
 import com.capitalot.dto.DailySnapshotDto;
+import com.capitalot.dto.StockFundamentalsDto;
 import com.capitalot.dto.yahoofinance.YahooFinanceSearchResponse;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
@@ -112,6 +113,9 @@ public class Stock {
 
     @Transient
     private List<YahooFinanceSearchResponse.News> news;
+
+    @Transient
+    private StockFundamentalsDto fundamentals;
     
     @ManyToMany
     @JoinTable(

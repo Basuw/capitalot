@@ -2,7 +2,9 @@ package com.capitalot.service;
 
 import com.capitalot.dto.AlphaVantageOverviewResponse;
 import com.capitalot.dto.DailySnapshotDto;
+import com.capitalot.dto.FinnhubMetricResponse;
 import com.capitalot.dto.FinnhubProfileResponse;
+import com.capitalot.dto.StockFundamentalsDto;
 import com.capitalot.dto.StockPriceResponse;
 import com.capitalot.dto.yahoofinance.YahooFinanceChartResponse;
 import com.capitalot.dto.yahoofinance.YahooFinanceQuoteSummaryResponse;
@@ -16,6 +18,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -109,7 +112,55 @@ public class StockEnrichmentService {
             log.warn("Could not enrich fundamentals for {}: {}", stock.getSymbol(), e.getMessage());
         }
 
+        // 4. Finnhub basic financials
+        try {
+            finnhubService.getMetrics(stock.getSymbol()).ifPresent(metrics -> {
+                stock.setFundamentals(buildFundamentals(metrics));
+            });
+        } catch (Exception e) {
+            log.warn("Could not fetch Finnhub metrics for {}: {}", stock.getSymbol(), e.getMessage());
+        }
+
         return stock;
+    }
+
+    private StockFundamentalsDto buildFundamentals(FinnhubMetricResponse response) {
+        Map<String, Object> m = response.getMetric();
+        if (m == null) return null;
+
+        return StockFundamentalsDto.builder()
+                .peTTM(getMetricDouble(m, "peExclExtraTTM"))
+                .forwardPE(getMetricDouble(m, "forwardPE"))
+                .pb(getMetricDouble(m, "pb"))
+                .psTTM(getMetricDouble(m, "psTTM"))
+                .evEbitdaTTM(getMetricDouble(m, "evEbitdaTTM"))
+                .epsAnnual(getMetricDouble(m, "epsAnnual"))
+                .epsTTM(getMetricDouble(m, "epsTTM"))
+                .epsGrowthTTMYoy(getMetricDouble(m, "epsGrowthTTMYoy"))
+                .epsGrowth5Y(getMetricDouble(m, "epsGrowth5Y"))
+                .grossMarginTTM(getMetricDouble(m, "grossMarginTTM"))
+                .operatingMarginTTM(getMetricDouble(m, "operatingMarginTTM"))
+                .netProfitMarginTTM(getMetricDouble(m, "netProfitMarginTTM"))
+                .roeTTM(getMetricDouble(m, "roeTTM"))
+                .roaTTM(getMetricDouble(m, "roaTTM"))
+                .revenueGrowthTTMYoy(getMetricDouble(m, "revenueGrowthTTMYoy"))
+                .revenueGrowth5Y(getMetricDouble(m, "revenueGrowth5Y"))
+                .return5D(getMetricDouble(m, "5DayPriceReturnDaily"))
+                .return13W(getMetricDouble(m, "13WeekPriceReturnDaily"))
+                .return26W(getMetricDouble(m, "26WeekPriceReturnDaily"))
+                .return52W(getMetricDouble(m, "52WeekPriceReturnDaily"))
+                .returnYTD(getMetricDouble(m, "yearToDatePriceReturnDaily"))
+                .dividendPerShareAnnual(getMetricDouble(m, "dividendPerShareAnnual"))
+                .dividendYieldAnnual(getMetricDouble(m, "dividendYieldIndicatedAnnual"))
+                .dividendGrowthRate5Y(getMetricDouble(m, "dividendGrowthRate5Y"))
+                .beta(getMetricDouble(m, "beta"))
+                .build();
+    }
+
+    private Double getMetricDouble(Map<String, Object> m, String key) {
+        Object val = m.get(key);
+        if (val instanceof Number) return ((Number) val).doubleValue();
+        return null;
     }
 
     private List<DailySnapshotDto> buildHistoricalSnapshots(YahooFinanceChartResponse chart) {

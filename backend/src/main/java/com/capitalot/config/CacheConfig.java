@@ -19,6 +19,7 @@ public class CacheConfig {
             "symbolSearch",
             "finnhubSearch",
             "finnhubProfile",
+            "finnhubMetric",
             "yahooFinanceChart",
             "yahooFinanceChartCustom",
             "yahooFinanceSearch",

@@ -1,5 +1,6 @@
 package com.capitalot.service;
 
+import com.capitalot.dto.FinnhubMetricResponse;
 import com.capitalot.dto.FinnhubProfileResponse;
 import com.capitalot.dto.FinnhubSearchResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +21,7 @@ public class FinnhubService {
 
     private static final String SEARCH_URL = "https://finnhub.io/api/v1/search";
     private static final String PROFILE_URL = "https://finnhub.io/api/v1/stock/profile2";
+    private static final String METRIC_URL = "https://finnhub.io/api/v1/stock/metric";
     private final RestTemplate restTemplate;
 
     public FinnhubService() {
@@ -80,6 +82,35 @@ public class FinnhubService {
 
         } catch (Exception e) {
             log.error("Error fetching Finnhub profile for {}: {}", symbol, e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    @Cacheable(value = "finnhubMetric", key = "#symbol", unless = "#result == null")
+    public Optional<FinnhubMetricResponse> getMetrics(String symbol) {
+        if (apiKey == null || apiKey.isEmpty()) {
+            return Optional.empty();
+        }
+
+        try {
+            String url = UriComponentsBuilder.fromHttpUrl(METRIC_URL)
+                    .queryParam("symbol", symbol)
+                    .queryParam("metric", "all")
+                    .queryParam("token", apiKey)
+                    .toUriString();
+
+            log.info("Fetching Finnhub metrics for symbol: {}", symbol);
+            FinnhubMetricResponse response = restTemplate.getForObject(url, FinnhubMetricResponse.class);
+
+            if (response != null && response.getMetric() != null && !response.getMetric().isEmpty()) {
+                return Optional.of(response);
+            }
+
+            log.warn("No Finnhub metrics found for symbol: {}", symbol);
+            return Optional.empty();
+
+        } catch (Exception e) {
+            log.error("Error fetching Finnhub metrics for {}: {}", symbol, e.getMessage());
             return Optional.empty();
         }
     }

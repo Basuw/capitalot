@@ -142,6 +142,140 @@
           </div>
         </div>
         
+        <!-- Métriques financières -->
+        <div v-if="stockInfo?.fundamentals" class="fundamentals-section">
+          <h3>Métriques financières</h3>
+          <div class="fundamentals-groups">
+
+            <div class="fund-group">
+              <h4>Valorisation</h4>
+              <div class="fund-grid">
+                <div class="fund-item" v-if="stockInfo.fundamentals.peTTM != null">
+                  <span class="fund-label">P/E (TTM)</span>
+                  <span class="fund-value">{{ stockInfo.fundamentals.peTTM.toFixed(2) }}</span>
+                </div>
+                <div class="fund-item" v-if="stockInfo.fundamentals.forwardPE != null">
+                  <span class="fund-label">P/E Forward</span>
+                  <span class="fund-value">{{ stockInfo.fundamentals.forwardPE.toFixed(2) }}</span>
+                </div>
+                <div class="fund-item" v-if="stockInfo.fundamentals.pb != null">
+                  <span class="fund-label">P/Book</span>
+                  <span class="fund-value">{{ stockInfo.fundamentals.pb.toFixed(2) }}</span>
+                </div>
+                <div class="fund-item" v-if="stockInfo.fundamentals.psTTM != null">
+                  <span class="fund-label">P/Sales (TTM)</span>
+                  <span class="fund-value">{{ stockInfo.fundamentals.psTTM.toFixed(2) }}</span>
+                </div>
+                <div class="fund-item" v-if="stockInfo.fundamentals.evEbitdaTTM != null">
+                  <span class="fund-label">EV/EBITDA</span>
+                  <span class="fund-value">{{ stockInfo.fundamentals.evEbitdaTTM.toFixed(2) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="fund-group">
+              <h4>Rentabilité</h4>
+              <div class="fund-grid">
+                <div class="fund-item" v-if="stockInfo.fundamentals.grossMarginTTM != null">
+                  <span class="fund-label">Marge brute</span>
+                  <span class="fund-value" :class="stockInfo.fundamentals.grossMarginTTM >= 0 ? 'pos' : 'neg'">{{ stockInfo.fundamentals.grossMarginTTM.toFixed(1) }}%</span>
+                </div>
+                <div class="fund-item" v-if="stockInfo.fundamentals.operatingMarginTTM != null">
+                  <span class="fund-label">Marge opérat.</span>
+                  <span class="fund-value" :class="stockInfo.fundamentals.operatingMarginTTM >= 0 ? 'pos' : 'neg'">{{ stockInfo.fundamentals.operatingMarginTTM.toFixed(1) }}%</span>
+                </div>
+                <div class="fund-item" v-if="stockInfo.fundamentals.netProfitMarginTTM != null">
+                  <span class="fund-label">Marge nette</span>
+                  <span class="fund-value" :class="stockInfo.fundamentals.netProfitMarginTTM >= 0 ? 'pos' : 'neg'">{{ stockInfo.fundamentals.netProfitMarginTTM.toFixed(1) }}%</span>
+                </div>
+                <div class="fund-item" v-if="stockInfo.fundamentals.roeTTM != null">
+                  <span class="fund-label">ROE</span>
+                  <span class="fund-value" :class="stockInfo.fundamentals.roeTTM >= 0 ? 'pos' : 'neg'">{{ stockInfo.fundamentals.roeTTM.toFixed(1) }}%</span>
+                </div>
+                <div class="fund-item" v-if="stockInfo.fundamentals.roaTTM != null">
+                  <span class="fund-label">ROA</span>
+                  <span class="fund-value" :class="stockInfo.fundamentals.roaTTM >= 0 ? 'pos' : 'neg'">{{ stockInfo.fundamentals.roaTTM.toFixed(1) }}%</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="fund-group">
+              <h4>Croissance</h4>
+              <div class="fund-grid">
+                <div class="fund-item" v-if="stockInfo.fundamentals.revenueGrowthTTMYoy != null">
+                  <span class="fund-label">Revenus YoY</span>
+                  <span class="fund-value" :class="stockInfo.fundamentals.revenueGrowthTTMYoy >= 0 ? 'pos' : 'neg'">{{ stockInfo.fundamentals.revenueGrowthTTMYoy >= 0 ? '+' : '' }}{{ stockInfo.fundamentals.revenueGrowthTTMYoy.toFixed(1) }}%</span>
+                </div>
+                <div class="fund-item" v-if="stockInfo.fundamentals.revenueGrowth5Y != null">
+                  <span class="fund-label">Revenus 5 ans</span>
+                  <span class="fund-value" :class="stockInfo.fundamentals.revenueGrowth5Y >= 0 ? 'pos' : 'neg'">{{ stockInfo.fundamentals.revenueGrowth5Y >= 0 ? '+' : '' }}{{ stockInfo.fundamentals.revenueGrowth5Y.toFixed(1) }}%</span>
+                </div>
+                <div class="fund-item" v-if="stockInfo.fundamentals.epsGrowthTTMYoy != null">
+                  <span class="fund-label">BPA YoY</span>
+                  <span class="fund-value" :class="stockInfo.fundamentals.epsGrowthTTMYoy >= 0 ? 'pos' : 'neg'">{{ stockInfo.fundamentals.epsGrowthTTMYoy >= 0 ? '+' : '' }}{{ stockInfo.fundamentals.epsGrowthTTMYoy.toFixed(1) }}%</span>
+                </div>
+                <div class="fund-item" v-if="stockInfo.fundamentals.epsGrowth5Y != null">
+                  <span class="fund-label">BPA 5 ans</span>
+                  <span class="fund-value" :class="stockInfo.fundamentals.epsGrowth5Y >= 0 ? 'pos' : 'neg'">{{ stockInfo.fundamentals.epsGrowth5Y >= 0 ? '+' : '' }}{{ stockInfo.fundamentals.epsGrowth5Y.toFixed(1) }}%</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="fund-group">
+              <h4>Performance prix</h4>
+              <div class="fund-grid">
+                <div class="fund-item" v-if="stockInfo.fundamentals.return5D != null">
+                  <span class="fund-label">5 jours</span>
+                  <span class="fund-value" :class="stockInfo.fundamentals.return5D >= 0 ? 'pos' : 'neg'">{{ stockInfo.fundamentals.return5D >= 0 ? '+' : '' }}{{ stockInfo.fundamentals.return5D.toFixed(2) }}%</span>
+                </div>
+                <div class="fund-item" v-if="stockInfo.fundamentals.return13W != null">
+                  <span class="fund-label">13 semaines</span>
+                  <span class="fund-value" :class="stockInfo.fundamentals.return13W >= 0 ? 'pos' : 'neg'">{{ stockInfo.fundamentals.return13W >= 0 ? '+' : '' }}{{ stockInfo.fundamentals.return13W.toFixed(2) }}%</span>
+                </div>
+                <div class="fund-item" v-if="stockInfo.fundamentals.return26W != null">
+                  <span class="fund-label">26 semaines</span>
+                  <span class="fund-value" :class="stockInfo.fundamentals.return26W >= 0 ? 'pos' : 'neg'">{{ stockInfo.fundamentals.return26W >= 0 ? '+' : '' }}{{ stockInfo.fundamentals.return26W.toFixed(2) }}%</span>
+                </div>
+                <div class="fund-item" v-if="stockInfo.fundamentals.return52W != null">
+                  <span class="fund-label">52 semaines</span>
+                  <span class="fund-value" :class="stockInfo.fundamentals.return52W >= 0 ? 'pos' : 'neg'">{{ stockInfo.fundamentals.return52W >= 0 ? '+' : '' }}{{ stockInfo.fundamentals.return52W.toFixed(2) }}%</span>
+                </div>
+                <div class="fund-item" v-if="stockInfo.fundamentals.returnYTD != null">
+                  <span class="fund-label">YTD</span>
+                  <span class="fund-value" :class="stockInfo.fundamentals.returnYTD >= 0 ? 'pos' : 'neg'">{{ stockInfo.fundamentals.returnYTD >= 0 ? '+' : '' }}{{ stockInfo.fundamentals.returnYTD.toFixed(2) }}%</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="fund-group" v-if="stockInfo.fundamentals.dividendPerShareAnnual || stockInfo.fundamentals.beta != null">
+              <h4>Dividende & Risque</h4>
+              <div class="fund-grid">
+                <div class="fund-item" v-if="stockInfo.fundamentals.dividendPerShareAnnual != null">
+                  <span class="fund-label">Dividende/action</span>
+                  <span class="fund-value">{{ preferencesStore.formatPrice(stockInfo.fundamentals.dividendPerShareAnnual) }}</span>
+                </div>
+                <div class="fund-item" v-if="stockInfo.fundamentals.dividendYieldAnnual != null">
+                  <span class="fund-label">Rendement div.</span>
+                  <span class="fund-value">{{ stockInfo.fundamentals.dividendYieldAnnual.toFixed(2) }}%</span>
+                </div>
+                <div class="fund-item" v-if="stockInfo.fundamentals.dividendGrowthRate5Y != null">
+                  <span class="fund-label">Croiss. div. 5A</span>
+                  <span class="fund-value" :class="stockInfo.fundamentals.dividendGrowthRate5Y >= 0 ? 'pos' : 'neg'">{{ stockInfo.fundamentals.dividendGrowthRate5Y >= 0 ? '+' : '' }}{{ stockInfo.fundamentals.dividendGrowthRate5Y.toFixed(1) }}%</span>
+                </div>
+                <div class="fund-item" v-if="stockInfo.fundamentals.beta != null">
+                  <span class="fund-label">Bêta</span>
+                  <span class="fund-value">{{ stockInfo.fundamentals.beta.toFixed(2) }}</span>
+                </div>
+                <div class="fund-item" v-if="stockInfo.fundamentals.epsTTM != null">
+                  <span class="fund-label">BPA (TTM)</span>
+                  <span class="fund-value">{{ preferencesStore.formatPrice(stockInfo.fundamentals.epsTTM) }}</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
         <!-- Données historiques — collapsible, fermé par défaut -->
         <div v-if="stockInfo?.historicalSnapshots?.length" class="collapsible-section">
           <button class="collapsible-header" @click="showHistory = !showHistory">
@@ -1071,6 +1205,71 @@ onMounted(async () => {
 }
 
 .benchmark-value.negative {
+  color: #ef4444;
+}
+
+.fundamentals-section {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  margin-bottom: 2rem;
+}
+
+.fundamentals-section h3 {
+  margin: 0 0 1.25rem 0;
+  color: #1e1e2e;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.fundamentals-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.fund-group h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.fund-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.fund-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  background: #f9fafb;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+}
+
+.fund-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.fund-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1e1e2e;
+}
+
+.fund-value.pos {
+  color: #10b981;
+}
+
+.fund-value.neg {
   color: #ef4444;
 }
 
