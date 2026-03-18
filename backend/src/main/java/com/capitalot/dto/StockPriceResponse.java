@@ -19,6 +19,8 @@ public class StockPriceResponse {
     private BigDecimal lowPrice;
     private BigDecimal previousClose;
     private BigDecimal changePercent;
+    private BigDecimal fiftyTwoWeekHigh;
+    private BigDecimal fiftyTwoWeekLow;
     private Long volume;
     private String currency;
     private LocalDateTime lastUpdated;

@@ -71,21 +71,55 @@ public class StockPriceService {
                         LocalDateTime dateTime = Instant.ofEpochSecond(marketTime != null ? marketTime : Instant.now().getEpochSecond())
                             .atZone(ZoneId.systemDefault())
                             .toLocalDateTime();
-                        
+
                         log.info("[DEBUG] Fetched price for {}: ${} at date: {}", symbol, currentPrice, dateTime);
-                        
-                        Double previousClose = meta.getPreviousClose() != null && meta.getPreviousClose() != 0.0 ? meta.getPreviousClose() : currentPrice;
+
+                        Double previousClose = meta.getPreviousClose() != null && meta.getPreviousClose() != 0.0
+                                ? meta.getPreviousClose()
+                                : (meta.getChartPreviousClose() != null ? meta.getChartPreviousClose() : currentPrice);
                         BigDecimal changePercent = BigDecimal.ZERO;
                         if (previousClose != 0.0) {
                             changePercent = BigDecimal.valueOf((currentPrice - previousClose) / previousClose * 100)
                                 .setScale(2, RoundingMode.HALF_UP);
                         }
-                        
+
+                        // Open price: from meta or first non-null open in indicators
+                        Double openPrice = null;
+                        Double dayHigh = meta.getRegularMarketDayHigh();
+                        Double dayLow = meta.getRegularMarketDayLow();
+                        Long volume = meta.getRegularMarketVolume();
+
+                        if (result.getIndicators() != null && result.getIndicators().getQuote() != null
+                                && !result.getIndicators().getQuote().isEmpty()) {
+                            YahooFinanceChartResponse.Quote q = result.getIndicators().getQuote().get(0);
+                            if (q.getOpen() != null && !q.getOpen().isEmpty()) {
+                                openPrice = q.getOpen().stream().filter(v -> v != null && v != 0.0).findFirst().orElse(null);
+                            }
+                            if (dayHigh == null && q.getHigh() != null) {
+                                dayHigh = q.getHigh().stream().filter(v -> v != null && v != 0.0)
+                                        .mapToDouble(Double::doubleValue).max().orElse(0.0);
+                            }
+                            if (dayLow == null && q.getLow() != null) {
+                                dayLow = q.getLow().stream().filter(v -> v != null && v != 0.0)
+                                        .mapToDouble(Double::doubleValue).min().orElse(0.0);
+                            }
+                            if (volume == null && q.getVolume() != null) {
+                                volume = q.getVolume().stream().filter(v -> v != null && v > 0)
+                                        .mapToLong(Long::longValue).sum();
+                            }
+                        }
+
                         return StockPriceResponse.builder()
                             .symbol(symbol)
                             .currentPrice(BigDecimal.valueOf(currentPrice))
+                            .openPrice(openPrice != null ? BigDecimal.valueOf(openPrice) : null)
+                            .highPrice(dayHigh != null && dayHigh != 0.0 ? BigDecimal.valueOf(dayHigh) : null)
+                            .lowPrice(dayLow != null && dayLow != 0.0 ? BigDecimal.valueOf(dayLow) : null)
                             .previousClose(BigDecimal.valueOf(previousClose))
                             .changePercent(changePercent)
+                            .fiftyTwoWeekHigh(meta.getFiftyTwoWeekHigh() != null ? BigDecimal.valueOf(meta.getFiftyTwoWeekHigh()) : null)
+                            .fiftyTwoWeekLow(meta.getFiftyTwoWeekLow() != null ? BigDecimal.valueOf(meta.getFiftyTwoWeekLow()) : null)
+                            .volume(volume)
                             .currency(meta.getCurrency() != null ? meta.getCurrency() : "USD")
                             .lastUpdated(dateTime)
                             .build();

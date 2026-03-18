@@ -3,6 +3,7 @@ package com.capitalot.service;
 import com.capitalot.dto.AlphaVantageOverviewResponse;
 import com.capitalot.dto.FinnhubProfileResponse;
 import com.capitalot.dto.StockPriceResponse;
+import com.capitalot.dto.yahoofinance.YahooFinanceChartResponse;
 import com.capitalot.dto.yahoofinance.YahooFinanceQuoteSummaryResponse;
 import com.capitalot.model.Stock;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,8 @@ public class StockEnrichmentService {
                 if (priceData.getHighPrice() != null) stock.setHighPrice(priceData.getHighPrice().doubleValue());
                 if (priceData.getLowPrice() != null) stock.setLowPrice(priceData.getLowPrice().doubleValue());
                 if (priceData.getPreviousClose() != null) stock.setPreviousClose(priceData.getPreviousClose().doubleValue());
+                if (priceData.getFiftyTwoWeekHigh() != null) stock.setFiftyTwoWeekHigh(priceData.getFiftyTwoWeekHigh().doubleValue());
+                if (priceData.getFiftyTwoWeekLow() != null) stock.setFiftyTwoWeekLow(priceData.getFiftyTwoWeekLow().doubleValue());
 
                 stock.setVolume(priceData.getVolume());
 
@@ -66,6 +69,26 @@ public class StockEnrichmentService {
     public Stock enrichStockFundamentals(Stock stock) {
         if (stock == null) return null;
 
+        // Max du jour précédent (5d/1d chart → avant-dernier point)
+        try {
+            yahooFinanceService.getChartData(stock.getSymbol(), "5d", "1d").ifPresent(chart -> {
+                if (chart.getChart() == null || chart.getChart().getResult() == null || chart.getChart().getResult().isEmpty()) return;
+                YahooFinanceChartResponse.Result result = chart.getChart().getResult().get(0);
+                if (result.getIndicators() == null || result.getIndicators().getQuote() == null
+                        || result.getIndicators().getQuote().isEmpty()) return;
+
+                List<Double> highs = result.getIndicators().getQuote().get(0).getHigh();
+                if (highs != null && highs.size() >= 2) {
+                    int prevIdx = highs.size() - 2;
+                    while (prevIdx >= 0 && (highs.get(prevIdx) == null || highs.get(prevIdx) == 0.0)) prevIdx--;
+                    if (prevIdx >= 0) stock.setPreviousDayHigh(highs.get(prevIdx));
+                }
+            });
+        } catch (Exception e) {
+            log.warn("Could not fetch previous day high for {}: {}", stock.getSymbol(), e.getMessage());
+        }
+
+        // Alpha Vantage : Beta→risk, dividendes, analyst ratings
         try {
             alphaVantageService.getOverview(stock.getSymbol()).ifPresent(overview -> {
                 applyAlphaVantageOverview(stock, overview);
@@ -97,6 +120,15 @@ public class StockEnrichmentService {
                 }
                 if (profile.getCurrency() != null && !profile.getCurrency().isBlank()) {
                     stock.setCurrency(profile.getCurrency());
+                }
+                if (profile.getMarketCapitalization() != null) {
+                    stock.setMarketCapitalization(profile.getMarketCapitalization());
+                }
+                if (profile.getShareOutstanding() != null) {
+                    stock.setShareOutstanding(profile.getShareOutstanding());
+                }
+                if (profile.getWeburl() != null && !profile.getWeburl().isBlank()) {
+                    stock.setWeburl(profile.getWeburl());
                 }
             });
         } catch (Exception e) {

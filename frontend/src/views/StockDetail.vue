@@ -37,53 +37,73 @@
         </div>
         
         <div v-if="stockInfo" class="main-info-grid">
-           <div class="info-card price-card">
-             <span class="label">Prix Actuel</span>
-             <span class="value price">{{ preferencesStore.formatPrice(stockInfo.currentPrice) }}</span>
-             <span 
-               v-if="stockInfo.dailyChange !== undefined" 
-               :class="['daily-change', stockInfo.dailyChange >= 0 ? 'positive' : 'negative']"
-             >
-               {{ stockInfo.dailyChange >= 0 ? '+' : '' }}{{ preferencesStore.formatPrice(Math.abs(stockInfo.dailyChange)) }}
-               ({{ stockInfo.dailyChange >= 0 ? '+' : '' }}{{ stockInfo.dailyChangePercentage?.toFixed(2) }}%)
-             </span>
-           </div>
+          <div class="info-card price-card">
+            <span class="label">Prix Actuel</span>
+            <span class="value price">{{ preferencesStore.formatPrice(stockInfo.currentPrice) }}</span>
+            <span
+              v-if="stockInfo.dailyChange !== undefined"
+              :class="['daily-change', stockInfo.dailyChange >= 0 ? 'positive' : 'negative']"
+            >
+              {{ stockInfo.dailyChange >= 0 ? '+' : '' }}{{ preferencesStore.formatPrice(Math.abs(stockInfo.dailyChange)) }}
+              ({{ stockInfo.dailyChange >= 0 ? '+' : '' }}{{ stockInfo.dailyChangePercentage?.toFixed(2) }}%)
+            </span>
+          </div>
 
-           <div class="info-card">
-             <span class="label">Ouverture</span>
-             <span class="value">{{ stockInfo.openPrice ? preferencesStore.formatPrice(stockInfo.openPrice) : 'N/A' }}</span>
-           </div>
+          <div class="info-card">
+            <span class="label">Ouverture</span>
+            <span class="value">{{ stockInfo.openPrice ? preferencesStore.formatPrice(stockInfo.openPrice) : 'N/A' }}</span>
+          </div>
 
-           <div class="info-card">
-             <span class="label">Plus Haut</span>
-             <span class="value high-value">{{ stockInfo.highPrice ? preferencesStore.formatPrice(stockInfo.highPrice) : 'N/A' }}</span>
-           </div>
+          <div class="info-card">
+            <span class="label">Haut du jour</span>
+            <span class="value high-value">{{ stockInfo.highPrice ? preferencesStore.formatPrice(stockInfo.highPrice) : 'N/A' }}</span>
+          </div>
 
-           <div class="info-card">
-             <span class="label">Plus Bas</span>
-             <span class="value low-value">{{ stockInfo.lowPrice ? preferencesStore.formatPrice(stockInfo.lowPrice) : 'N/A' }}</span>
-           </div>
-           
-           <div class="info-card">
-             <span class="label">Clôture Préc.</span>
-             <span class="value">{{ stockInfo.previousClose ? preferencesStore.formatPrice(stockInfo.previousClose) : 'N/A' }}</span>
-           </div>
-          
+          <div class="info-card">
+            <span class="label">Bas du jour</span>
+            <span class="value low-value">{{ stockInfo.lowPrice ? preferencesStore.formatPrice(stockInfo.lowPrice) : 'N/A' }}</span>
+          </div>
+
+          <div class="info-card">
+            <span class="label">Max hier</span>
+            <span class="value">{{ stockInfo.previousDayHigh ? preferencesStore.formatPrice(stockInfo.previousDayHigh) : 'N/A' }}</span>
+          </div>
+
+          <div class="info-card">
+            <span class="label">Clôture Préc.</span>
+            <span class="value">{{ stockInfo.previousClose ? preferencesStore.formatPrice(stockInfo.previousClose) : 'N/A' }}</span>
+          </div>
+
+          <div class="info-card">
+            <span class="label">52 sem. haut</span>
+            <span class="value high-value">{{ stockInfo.fiftyTwoWeekHigh ? preferencesStore.formatPrice(stockInfo.fiftyTwoWeekHigh) : 'N/A' }}</span>
+          </div>
+
+          <div class="info-card">
+            <span class="label">52 sem. bas</span>
+            <span class="value low-value">{{ stockInfo.fiftyTwoWeekLow ? preferencesStore.formatPrice(stockInfo.fiftyTwoWeekLow) : 'N/A' }}</span>
+          </div>
+
           <div class="info-card">
             <span class="label">Volume</span>
             <span class="value">{{ formatVolume(stockInfo.volume) }}</span>
           </div>
 
-           <div class="info-card">
-             <span class="label">Dividende Ann.</span>
-             <span class="value">{{ preferencesStore.formatPrice(stockInfo.annualDividend || 0) }}</span>
-           </div>
+          <div class="info-card">
+            <span class="label">Dividende Ann.</span>
+            <span class="value">{{ preferencesStore.formatPrice(stockInfo.annualDividend || 0) }}</span>
+          </div>
 
           <div class="info-card">
             <span class="label">Score de Risque</span>
             <span class="value" :style="{ color: getRiskColor(stockInfo.risk) }">
               {{ stockInfo.risk?.toFixed(1) || 'N/A' }}/10
             </span>
+          </div>
+
+          <div v-if="stockInfo.marketCapitalization" class="info-card">
+            <span class="label">Capitalisation</span>
+            <span class="value">{{ formatMarketCap(stockInfo.marketCapitalization) }}</span>
           </div>
         </div>
 
@@ -95,6 +115,14 @@
           <div class="info-item">
             <span class="label">Industrie</span>
             <span class="value">{{ stockInfo.industry || 'N/A' }}</span>
+          </div>
+          <div v-if="stockInfo.shareOutstanding" class="info-item">
+            <span class="label">Actions en circulation</span>
+            <span class="value">{{ formatShares(stockInfo.shareOutstanding) }}</span>
+          </div>
+          <div v-if="stockInfo.weburl" class="info-item">
+            <span class="label">Site web</span>
+            <a :href="stockInfo.weburl" target="_blank" rel="noopener" class="weburl-link">{{ stockInfo.weburl }}</a>
           </div>
         </div>
 
@@ -366,14 +394,26 @@ function getRiskColor(risk) {
 
 function formatVolume(volume) {
   if (!volume) return 'N/A'
-  if (volume >= 1000000000) {
-    return (volume / 1000000000).toFixed(2) + 'B'
-  } else if (volume >= 1000000) {
-    return (volume / 1000000).toFixed(2) + 'M'
-  } else if (volume >= 1000) {
-    return (volume / 1000).toFixed(2) + 'K'
-  }
+  if (volume >= 1000000000) return (volume / 1000000000).toFixed(2) + 'B'
+  if (volume >= 1000000) return (volume / 1000000).toFixed(2) + 'M'
+  if (volume >= 1000) return (volume / 1000).toFixed(2) + 'K'
   return volume.toLocaleString()
+}
+
+// marketCapitalization from Finnhub is in millions USD
+function formatMarketCap(cap) {
+  if (!cap) return 'N/A'
+  const capM = cap // already in millions
+  if (capM >= 1000000) return (capM / 1000000).toFixed(2) + 'T'
+  if (capM >= 1000) return (capM / 1000).toFixed(2) + 'B'
+  return capM.toFixed(0) + 'M'
+}
+
+// shareOutstanding from Finnhub is in millions
+function formatShares(shares) {
+  if (!shares) return 'N/A'
+  if (shares >= 1000) return (shares / 1000).toFixed(2) + 'B'
+  return shares.toFixed(2) + 'M'
 }
 
 async function refreshData() {
@@ -878,6 +918,17 @@ onMounted(async () => {
   padding: 2rem;
   color: #6b7280;
   font-style: italic;
+}
+
+.weburl-link {
+  color: #667eea;
+  text-decoration: none;
+  font-size: 0.9rem;
+  word-break: break-all;
+}
+
+.weburl-link:hover {
+  text-decoration: underline;
 }
 
 .no-data {

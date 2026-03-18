@@ -89,6 +89,24 @@ public class Stock {
     private LocalDateTime lastPriceUpdate;
 
     @Transient
+    private Double fiftyTwoWeekHigh;
+
+    @Transient
+    private Double fiftyTwoWeekLow;
+
+    @Transient
+    private Double previousDayHigh;
+
+    @Transient
+    private Double marketCapitalization;
+
+    @Transient
+    private Double shareOutstanding;
+
+    @Transient
+    private String weburl;
+
+    @Transient
     private List<YahooFinanceSearchResponse.News> news;
     
     @ManyToMany

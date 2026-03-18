@@ -36,40 +36,67 @@ public class YahooFinanceChartResponse {
     public static class Meta {
         @JsonProperty("currency")
         private String currency;
-        
+
         @JsonProperty("symbol")
         private String symbol;
-        
+
         @JsonProperty("exchangeName")
         private String exchangeName;
-        
+
+        @JsonProperty("fullExchangeName")
+        private String fullExchangeName;
+
         @JsonProperty("instrumentType")
         private String instrumentType;
-        
+
         @JsonProperty("firstTradeDate")
         private Long firstTradeDate;
-        
+
         @JsonProperty("regularMarketTime")
         private Long regularMarketTime;
-        
+
         @JsonProperty("regularMarketPrice")
         private Double regularMarketPrice;
-        
+
+        @JsonProperty("regularMarketDayHigh")
+        private Double regularMarketDayHigh;
+
+        @JsonProperty("regularMarketDayLow")
+        private Double regularMarketDayLow;
+
+        @JsonProperty("regularMarketVolume")
+        private Long regularMarketVolume;
+
+        @JsonProperty("fiftyTwoWeekHigh")
+        private Double fiftyTwoWeekHigh;
+
+        @JsonProperty("fiftyTwoWeekLow")
+        private Double fiftyTwoWeekLow;
+
+        @JsonProperty("chartPreviousClose")
+        private Double chartPreviousClose;
+
+        @JsonProperty("longName")
+        private String longName;
+
+        @JsonProperty("shortName")
+        private String shortName;
+
         @JsonProperty("gmtoffset")
         private Integer gmtoffset;
-        
+
         @JsonProperty("timezone")
         private String timezone;
-        
+
         @JsonProperty("previousClose")
         private Double previousClose;
-        
+
         @JsonProperty("scale")
         private Integer scale;
-        
+
         @JsonProperty("priceHint")
         private Integer priceHint;
-        
+
         @JsonProperty("currentTradingPeriod")
         private TradingPeriod currentTradingPeriod;
     }
