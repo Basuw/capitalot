@@ -1,6 +1,7 @@
 package com.capitalot.service;
 
 import com.capitalot.dto.AlphaVantageOverviewResponse;
+import com.capitalot.dto.DailySnapshotDto;
 import com.capitalot.dto.FinnhubProfileResponse;
 import com.capitalot.dto.StockPriceResponse;
 import com.capitalot.dto.yahoofinance.YahooFinanceChartResponse;
@@ -10,6 +11,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -63,32 +68,39 @@ public class StockEnrichmentService {
     }
 
     /**
-     * Enrichissement complet avec fondamentaux (Beta→risk, dividendes, analyst ratings).
-     * Appelé uniquement pour la page détail d'une action.
+     * Enrichissement complet pour la page détail :
+     * - Logo Finnhub profile2 (toujours forcé)
+     * - Snapshots historiques via chart Yahoo 1y/1d
+     * - Alpha Vantage : Beta→risk, dividendes, analyst ratings
      */
     public Stock enrichStockFundamentals(Stock stock) {
         if (stock == null) return null;
 
-        // Max du jour précédent (5d/1d chart → avant-dernier point)
+        // 1. Logo depuis Finnhub profile2 (toujours forcé pour la page détail)
         try {
-            yahooFinanceService.getChartData(stock.getSymbol(), "5d", "1d").ifPresent(chart -> {
-                if (chart.getChart() == null || chart.getChart().getResult() == null || chart.getChart().getResult().isEmpty()) return;
-                YahooFinanceChartResponse.Result result = chart.getChart().getResult().get(0);
-                if (result.getIndicators() == null || result.getIndicators().getQuote() == null
-                        || result.getIndicators().getQuote().isEmpty()) return;
-
-                List<Double> highs = result.getIndicators().getQuote().get(0).getHigh();
-                if (highs != null && highs.size() >= 2) {
-                    int prevIdx = highs.size() - 2;
-                    while (prevIdx >= 0 && (highs.get(prevIdx) == null || highs.get(prevIdx) == 0.0)) prevIdx--;
-                    if (prevIdx >= 0) stock.setPreviousDayHigh(highs.get(prevIdx));
+            finnhubService.getProfile(stock.getSymbol()).ifPresent(profile -> {
+                if (profile.getLogo() != null && !profile.getLogo().isBlank()) {
+                    stock.setLogoUrl(profile.getLogo());
                 }
+                if (profile.getMarketCapitalization() != null) stock.setMarketCapitalization(profile.getMarketCapitalization());
+                if (profile.getShareOutstanding() != null) stock.setShareOutstanding(profile.getShareOutstanding());
+                if (profile.getWeburl() != null && !profile.getWeburl().isBlank()) stock.setWeburl(profile.getWeburl());
+                if (profile.getExchange() != null && !profile.getExchange().isBlank()) stock.setExchange(profile.getExchange());
             });
         } catch (Exception e) {
-            log.warn("Could not fetch previous day high for {}: {}", stock.getSymbol(), e.getMessage());
+            log.warn("Could not fetch Finnhub profile for logo {}: {}", stock.getSymbol(), e.getMessage());
         }
 
-        // Alpha Vantage : Beta→risk, dividendes, analyst ratings
+        // 2. Snapshots historiques depuis Yahoo Finance chart 1y/1d
+        try {
+            yahooFinanceService.getChartData(stock.getSymbol(), "1y", "1d").ifPresent(chart -> {
+                stock.setHistoricalSnapshots(buildHistoricalSnapshots(chart));
+            });
+        } catch (Exception e) {
+            log.warn("Could not build historical snapshots for {}: {}", stock.getSymbol(), e.getMessage());
+        }
+
+        // 3. Alpha Vantage : Beta→risk, dividendes, analyst ratings
         try {
             alphaVantageService.getOverview(stock.getSymbol()).ifPresent(overview -> {
                 applyAlphaVantageOverview(stock, overview);
@@ -98,6 +110,76 @@ public class StockEnrichmentService {
         }
 
         return stock;
+    }
+
+    private List<DailySnapshotDto> buildHistoricalSnapshots(YahooFinanceChartResponse chart) {
+        List<DailySnapshotDto> snapshots = new ArrayList<>();
+        if (chart.getChart() == null || chart.getChart().getResult() == null || chart.getChart().getResult().isEmpty()) {
+            return snapshots;
+        }
+
+        YahooFinanceChartResponse.Result result = chart.getChart().getResult().get(0);
+        List<Long> timestamps = result.getTimestamp();
+        if (timestamps == null || timestamps.isEmpty()) return snapshots;
+
+        if (result.getIndicators() == null || result.getIndicators().getQuote() == null
+                || result.getIndicators().getQuote().isEmpty()) return snapshots;
+
+        YahooFinanceChartResponse.Quote q = result.getIndicators().getQuote().get(0);
+        List<Double> opens = q.getOpen();
+        List<Double> highs = q.getHigh();
+        List<Double> lows = q.getLow();
+        List<Double> closes = q.getClose();
+        List<Long> volumes = q.getVolume();
+
+        int size = timestamps.size();
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+        // Indices des périodes à afficher (on remonte depuis la fin)
+        int[][] periodsConfig = {
+            { size - 2, 0 },   // Hier (index, offset pour changePercent)
+            { size - 6, size - 7 },   // Il y a 1 semaine
+            { size - 22, size - 23 }, // Il y a 1 mois
+            { 0, -1 }                 // Il y a 1 an (pas de précédent)
+        };
+        String[] labels = { "Hier", "Il y a 1 semaine", "Il y a 1 mois", "Il y a 1 an" };
+
+        for (int i = 0; i < periodsConfig.length; i++) {
+            int idx = Math.max(0, periodsConfig[i][0]);
+            int prevIdx = periodsConfig[i][1];
+
+            if (idx >= size) continue;
+
+            String date = Instant.ofEpochSecond(timestamps.get(idx))
+                    .atZone(ZoneId.systemDefault()).toLocalDate().format(fmt);
+
+            Double close = safeGet(closes, idx);
+            Double prevClose = (prevIdx >= 0 && prevIdx < size) ? safeGet(closes, prevIdx) : null;
+
+            Double changePercent = null;
+            if (close != null && prevClose != null && prevClose != 0.0) {
+                changePercent = (close - prevClose) / prevClose * 100;
+            }
+
+            snapshots.add(DailySnapshotDto.builder()
+                    .period(labels[i])
+                    .date(date)
+                    .open(safeGet(opens, idx))
+                    .high(safeGet(highs, idx))
+                    .low(safeGet(lows, idx))
+                    .close(close)
+                    .volume(volumes != null && idx < volumes.size() ? volumes.get(idx) : null)
+                    .changePercent(changePercent)
+                    .build());
+        }
+
+        return snapshots;
+    }
+
+    private Double safeGet(List<Double> list, int idx) {
+        if (list == null || idx < 0 || idx >= list.size()) return null;
+        Double v = list.get(idx);
+        return (v != null && v != 0.0) ? v : null;
     }
 
     private void enrichStockDetails(Stock stock) {

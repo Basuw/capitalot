@@ -24,15 +24,22 @@
           </button>
         </div>
         <div class="header-main-title">
-          <div v-if="stockInfo?.logoUrl" class="stock-logo-container">
-            <img :src="stockInfo.logoUrl" :alt="stockInfo.name" @error="handleLogoError" class="stock-logo-img" />
-          </div>
-          <div v-else class="stock-icon-placeholder">
-            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+          <div class="stock-logo-container">
+            <img
+              :src="logoSrc"
+              :alt="stockInfo?.name"
+              @error="onLogoError"
+              class="stock-logo-img"
+              ref="logoImg"
+            />
           </div>
           <div class="header-titles">
             <h1>{{ stockInfo?.name || symbol }}</h1>
-            <p v-if="stockInfo" class="stock-symbol-subtitle">{{ symbol }} • {{ stockInfo.exchange }}</p>
+            <p v-if="stockInfo" class="stock-symbol-subtitle">
+              {{ symbol }}
+              <span v-if="stockInfo.exchange"> • {{ stockInfo.exchange }}</span>
+              <span v-if="stockInfo.currency"> • {{ stockInfo.currency }}</span>
+            </p>
           </div>
         </div>
         
@@ -62,26 +69,6 @@
           <div class="info-card">
             <span class="label">Bas du jour</span>
             <span class="value low-value">{{ stockInfo.lowPrice ? preferencesStore.formatPrice(stockInfo.lowPrice) : 'N/A' }}</span>
-          </div>
-
-          <div class="info-card">
-            <span class="label">Max hier</span>
-            <span class="value">{{ stockInfo.previousDayHigh ? preferencesStore.formatPrice(stockInfo.previousDayHigh) : 'N/A' }}</span>
-          </div>
-
-          <div class="info-card">
-            <span class="label">Clôture Préc.</span>
-            <span class="value">{{ stockInfo.previousClose ? preferencesStore.formatPrice(stockInfo.previousClose) : 'N/A' }}</span>
-          </div>
-
-          <div class="info-card">
-            <span class="label">52 sem. haut</span>
-            <span class="value high-value">{{ stockInfo.fiftyTwoWeekHigh ? preferencesStore.formatPrice(stockInfo.fiftyTwoWeekHigh) : 'N/A' }}</span>
-          </div>
-
-          <div class="info-card">
-            <span class="label">52 sem. bas</span>
-            <span class="value low-value">{{ stockInfo.fiftyTwoWeekLow ? preferencesStore.formatPrice(stockInfo.fiftyTwoWeekLow) : 'N/A' }}</span>
           </div>
 
           <div class="info-card">
@@ -155,83 +142,44 @@
           </div>
         </div>
         
-        <!-- Advanced Metrics Section -->
-        <div v-if="metrics && preferencesStore.preferences.showDetailedMetrics" class="metrics-section">
-          <h3>Mesures Avancées</h3>
-          <div class="metrics-grid">
-            
-            <!-- Annualized Return -->
-            <div v-if="preferencesStore.preferences.showAnnualizedReturn && metrics.annualizedReturn !== null" class="metric-card">
-              <div class="metric-header">
-                <span class="metric-icon">📈</span>
-                <span class="metric-label">Rendement Annualisé</span>
-              </div>
-              <div :class="['metric-value', metrics.annualizedReturn >= 0 ? 'positive' : 'negative']">
-                {{ metrics.annualizedReturn >= 0 ? '+' : '' }}{{ (metrics.annualizedReturn * 100).toFixed(2) }}%
-              </div>
-              <div class="metric-description">Taux de rendement annuel projeté</div>
-            </div>
-
-            <!-- Benchmark Comparison -->
-            <div v-if="preferencesStore.preferences.showBenchmarkComparison && metrics.benchmarkComparison" class="metric-card">
-              <div class="metric-header">
-                <span class="metric-icon">⚖️</span>
-                <span class="metric-label">vs {{ metrics.benchmarkComparison.benchmarkSymbol }}</span>
-              </div>
-              <div class="benchmark-details">
-                <div class="benchmark-row">
-                  <span class="benchmark-label">{{ symbol }}:</span>
-                  <span :class="['benchmark-value', metrics.percentChange >= 0 ? 'positive' : 'negative']">
-                    {{ metrics.percentChange >= 0 ? '+' : '' }}{{ metrics.percentChange.toFixed(2) }}%
-                  </span>
-                </div>
-                <div class="benchmark-row">
-                  <span class="benchmark-label">{{ metrics.benchmarkComparison.benchmarkSymbol }}:</span>
-                  <span :class="['benchmark-value', metrics.benchmarkComparison.benchmarkPercentChange >= 0 ? 'positive' : 'negative']">
-                    {{ metrics.benchmarkComparison.benchmarkPercentChange >= 0 ? '+' : '' }}{{ metrics.benchmarkComparison.benchmarkPercentChange.toFixed(2) }}%
-                  </span>
-                </div>
-                <div class="benchmark-row difference">
-                  <span class="benchmark-label">Différence:</span>
-                  <span :class="['benchmark-value', metrics.benchmarkComparison.outperformance >= 0 ? 'positive' : 'negative']">
-                    {{ metrics.benchmarkComparison.outperformance >= 0 ? '+' : '' }}{{ metrics.benchmarkComparison.outperformance.toFixed(2) }}%
-                  </span>
-                </div>
-              </div>
-            </div>
-
-             <!-- Best Day -->
-             <div v-if="preferencesStore.preferences.showBestWorstDay && metrics.bestDay" class="metric-card">
-               <div class="metric-header">
-                 <span class="metric-icon">🎯</span>
-                 <span class="metric-label">Meilleur Jour</span>
-               </div>
-               <div class="metric-value positive">
-                 +{{ (metrics.bestDay.percentChange * 100).toFixed(2) }}%
-               </div>
-               <div class="metric-description">
-                 {{ new Date(metrics.bestDay.date).toLocaleDateString() }}
-                 <br/>
-                 {{ preferencesStore.formatPrice(metrics.bestDay.price) }} (+{{ preferencesStore.formatPrice(metrics.bestDay.priceChange) }})
-               </div>
-             </div>
-
-             <!-- Worst Day -->
-             <div v-if="preferencesStore.preferences.showBestWorstDay && metrics.worstDay" class="metric-card">
-               <div class="metric-header">
-                 <span class="metric-icon">⚠️</span>
-                 <span class="metric-label">Pire Jour</span>
-               </div>
-               <div class="metric-value negative">
-                 {{ (metrics.worstDay.percentChange * 100).toFixed(2) }}%
-               </div>
-               <div class="metric-description">
-                 {{ new Date(metrics.worstDay.date).toLocaleDateString() }}
-                 <br/>
-                 {{ preferencesStore.formatPrice(metrics.worstDay.price) }} ({{ preferencesStore.formatPrice(metrics.worstDay.priceChange) }})
-               </div>
-             </div>
-
+        <!-- Données historiques — collapsible, fermé par défaut -->
+        <div v-if="stockInfo?.historicalSnapshots?.length" class="collapsible-section">
+          <button class="collapsible-header" @click="showHistory = !showHistory">
+            <span>Données historiques</span>
+            <svg :class="['chevron', { open: showHistory }]" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+          <div v-show="showHistory" class="historical-table-wrapper">
+            <table class="historical-table">
+              <thead>
+                <tr>
+                  <th>Période</th>
+                  <th>Date</th>
+                  <th class="right">Ouverture</th>
+                  <th class="right">Haut</th>
+                  <th class="right">Bas</th>
+                  <th class="right">Clôture</th>
+                  <th class="right">Volume</th>
+                  <th class="right">Variation</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="snap in stockInfo.historicalSnapshots" :key="snap.period">
+                  <td class="period-label">{{ snap.period }}</td>
+                  <td class="date-col">{{ snap.date }}</td>
+                  <td class="right">{{ snap.open ? preferencesStore.formatPrice(snap.open) : '—' }}</td>
+                  <td class="right high-value">{{ snap.high ? preferencesStore.formatPrice(snap.high) : '—' }}</td>
+                  <td class="right low-value">{{ snap.low ? preferencesStore.formatPrice(snap.low) : '—' }}</td>
+                  <td class="right"><strong>{{ snap.close ? preferencesStore.formatPrice(snap.close) : '—' }}</strong></td>
+                  <td class="right">{{ snap.volume ? formatVolume(snap.volume) : '—' }}</td>
+                  <td class="right">
+                    <span v-if="snap.changePercent != null" :class="snap.changePercent >= 0 ? 'positive' : 'negative'">
+                      {{ snap.changePercent >= 0 ? '+' : '' }}{{ snap.changePercent?.toFixed(2) }}%
+                    </span>
+                    <span v-else>—</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -303,14 +251,29 @@ const preferencesStore = usePreferencesStore()
 
 const stockInfo = ref(null)
 const priceHistory = ref([])
-const metrics = ref(null)
 const loading = ref(true)
 const refreshing = ref(false)
 const error = ref(null)
 const selectedPeriod = ref('1M')
+const showHistory = ref(false)
+const logoImg = ref(null)
+const logoFallbackUsed = ref(false)
 
-const handleLogoError = (e) => {
-  e.target.style.display = 'none'
+// Logo : CDN statique Finnhub en priorité, puis logoUrl du backend
+const logoSrc = computed(() => {
+  if (!logoFallbackUsed.value) {
+    return `https://static2.finnhub.io/file/publicdatany/finnhubimage/stock_logo/${symbol}.png`
+  }
+  return stockInfo.value?.logoUrl || ''
+})
+
+function onLogoError() {
+  if (!logoFallbackUsed.value && stockInfo.value?.logoUrl) {
+    logoFallbackUsed.value = true // bascule sur logoUrl du backend
+  } else {
+    // Plus de fallback : cacher l'image et montrer le placeholder
+    if (logoImg.value) logoImg.value.style.display = 'none'
+  }
 }
 
 const formatNewsTime = (timestamp) => {
@@ -362,17 +325,6 @@ async function loadStockData() {
     stockInfo.value = responses[0].data
     priceHistory.value = responses[1].data
     
-    // Load metrics if any advanced feature is enabled
-    const prefs = preferencesStore.preferences
-    if (prefs.showAnnualizedReturn || prefs.showBenchmarkComparison || prefs.showBestWorstDay || prefs.showDetailedMetrics) {
-      const benchmarkParam = prefs.benchmarkSymbol || 'SPY'
-      try {
-        const metricsResponse = await api.get(`/stocks/info/${encodedSymbol}/metrics?period=${selectedPeriod.value}&benchmark=${benchmarkParam}`)
-        metrics.value = metricsResponse.data
-      } catch (mErr) {
-        console.warn('Failed to load metrics:', mErr)
-      }
-    }
   } catch (err) {
     console.error('Error loading stock data:', err)
     error.value = err.response?.data?.message || err.message || 'Impossible de charger les données'
@@ -527,34 +479,36 @@ onMounted(async () => {
 }
 
 .stock-logo-container {
-  width: 64px;
-  height: 64px;
+  width: 80px;
+  height: 80px;
   background: white;
-  border-radius: 12px;
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.10);
   border: 1px solid #eee;
+  flex-shrink: 0;
 }
 
 .stock-logo-img {
-  max-width: 100%;
-  max-height: 100%;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
-  padding: 4px;
+  padding: 8px;
 }
 
 .stock-icon-placeholder {
-  width: 64px;
-  height: 64px;
-  background: #f3f4f6;
-  border-radius: 12px;
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #6b7280;
+  flex-shrink: 0;
 }
 
 .header-titles h1 {
@@ -931,6 +885,69 @@ onMounted(async () => {
   text-decoration: underline;
 }
 
+.historical-table-wrapper {
+  overflow-x: auto;
+}
+
+.historical-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.historical-table th {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.historical-table th.right {
+  text-align: right;
+}
+
+.historical-table td {
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid #f3f4f6;
+  color: #374151;
+}
+
+.historical-table td.right {
+  text-align: right;
+}
+
+.historical-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+.historical-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.period-label {
+  font-weight: 600;
+  color: #1e1e2e;
+}
+
+.date-col {
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+.positive {
+  color: #10b981;
+  font-weight: 600;
+}
+
+.negative {
+  color: #ef4444;
+  font-weight: 600;
+}
+
 .no-data {
   text-align: center;
   padding: 3rem;
@@ -1055,5 +1072,43 @@ onMounted(async () => {
 
 .benchmark-value.negative {
   color: #ef4444;
+}
+
+.collapsible-section {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  margin-bottom: 2rem;
+  overflow: hidden;
+}
+
+.collapsible-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 1.25rem 1.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1e1e2e;
+  text-align: left;
+  transition: background 0.2s;
+}
+
+.collapsible-header:hover {
+  background: #f9fafb;
+}
+
+.chevron {
+  transition: transform 0.25s ease;
+  flex-shrink: 0;
+  color: #6b7280;
+}
+
+.chevron.open {
+  transform: rotate(180deg);
 }
 </style>
