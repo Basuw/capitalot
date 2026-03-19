@@ -1,7 +1,7 @@
 <template>
   <Transition name="modal">
     <div v-if="show" class="modal-overlay" @click="close">
-      <div class="modal-content" @click.stop>
+      <div class="modal-content" :class="`modal-${size}`" @click.stop>
         <div class="modal-header">
           <h2>{{ title }}</h2>
           <button class="close-btn" @click="close">&times;</button>
@@ -17,7 +17,11 @@
 <script setup>
 defineProps({
   show: Boolean,
-  title: String
+  title: String,
+  size: {
+    type: String,
+    default: 'medium'
+  }
 })
 
 const emit = defineEmits(['close'])
@@ -49,6 +53,10 @@ function close() {
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.modal-large {
+  max-width: 960px;
 }
 
 .modal-header {

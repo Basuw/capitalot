@@ -359,7 +359,7 @@
           </form>
         </Modal>
 
-        <Modal :show="showPurchaseHistoryModal" title="Purchase History" @close="closePurchaseHistoryModal">
+        <Modal :show="showPurchaseHistoryModal" title="Purchase History" size="large" @close="closePurchaseHistoryModal">
           <div v-if="selectedStockForHistory" class="purchase-history-content">
             <div class="stock-summary">
               <h4>{{ selectedStockForHistory.stock.symbol }} - {{ selectedStockForHistory.stock.name }}</h4>

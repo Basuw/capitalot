@@ -4,6 +4,7 @@
       <button
         v-for="category in categories"
         :key="category"
+        type="button"
         :class="['category-btn', { active: selectedCategory === category }]"
         @click="selectedCategory = category"
       >
@@ -15,6 +16,7 @@
       <button
         v-for="icon in filteredIcons"
         :key="icon"
+        type="button"
         :class="['icon-btn', { selected: modelValue === icon }]"
         @click="selectIcon(icon)"
       >
