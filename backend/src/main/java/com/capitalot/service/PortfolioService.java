@@ -44,8 +44,9 @@ public class PortfolioService {
         for (Portfolio portfolio : portfolios) {
             double totalValue = 0.0;
             for (PortfolioStock ps : portfolio.getStocks()) {
-                if (ps.getCurrentValue() != null) {
-                    totalValue += ps.getCurrentValue();
+                if (ps.getSaleDate() == null) {
+                    StockPriceResponse priceResponse = stockPriceService.getStockPrice(ps.getStock().getSymbol());
+                    totalValue += priceResponse.getCurrentPrice().doubleValue() * ps.getQuantity().doubleValue();
                 }
             }
             portfolio.setTotalValue(totalValue);
@@ -90,6 +91,22 @@ public class PortfolioService {
         return portfolio;
     }
     
+    @Transactional
+    public Portfolio updatePortfolio(Long portfolioId, String email, String name, String description, String icon, String link) {
+        User user = userRepository.findByEmail(email)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+        Portfolio portfolio = portfolioRepository.findById(portfolioId)
+            .orElseThrow(() -> new RuntimeException("Portfolio not found"));
+        if (!portfolio.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("Unauthorized access to portfolio");
+        }
+        if (name != null) portfolio.setName(name);
+        portfolio.setDescription(description);
+        portfolio.setIcon(icon);
+        portfolio.setLink(link);
+        return portfolioRepository.save(portfolio);
+    }
+
     @Transactional
     public Portfolio createPortfolio(String email, String name, String description, String icon, String link) {
         User user = userRepository.findByEmail(email)
@@ -248,7 +265,7 @@ public class PortfolioService {
             
             history.add(PortfolioPerformanceDto.builder()
                 .timestamp(timestamp)
-                .totalValue(BigDecimal.valueOf(value))
+                .totalValue(value)
                 .build());
         }
         

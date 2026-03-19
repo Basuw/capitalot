@@ -58,6 +58,22 @@ public class PortfolioController {
         return ResponseEntity.ok(portfolioService.addStockToPortfolio(portfolioId, request, authentication.getName()));
     }
     
+    @PutMapping("/{portfolioId}")
+    public ResponseEntity<Portfolio> updatePortfolio(
+            @PathVariable Long portfolioId,
+            @RequestBody Map<String, String> request,
+            Authentication authentication) {
+        Portfolio portfolio = portfolioService.updatePortfolio(
+            portfolioId,
+            authentication.getName(),
+            request.get("name"),
+            request.get("description"),
+            request.get("icon"),
+            request.get("link")
+        );
+        return ResponseEntity.ok(portfolio);
+    }
+
     @DeleteMapping("/{portfolioId}")
     public ResponseEntity<Void> deletePortfolio(@PathVariable Long portfolioId) {
         portfolioService.deletePortfolio(portfolioId);

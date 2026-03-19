@@ -1,7 +1,7 @@
 <template>
   <div>
     <Navbar />
-    
+
     <div class="dashboard-container">
       <h1>Dashboard</h1>
 
@@ -50,18 +50,39 @@
       <div class="performance-section">
         <div class="section-header">
           <h2>Portfolio Performance</h2>
-          <div class="time-selector">
-            <button 
-              v-for="period in periods" 
-              :key="period.value"
-              @click="selectedPeriod = period.value"
-              :class="['period-btn', { active: selectedPeriod === period.value }]"
-            >
-              {{ period.label }}
-            </button>
+          <div class="chart-controls">
+            <div class="portfolio-selector" v-if="portfolioStore.portfolios.length > 1">
+              <div class="selector-label">Portfolios:</div>
+              <div class="selector-tags">
+                <button
+                  class="tag-btn"
+                  :class="{ active: selectedPortfolioIds.length === 0 }"
+                  @click="selectAll"
+                >All</button>
+                <button
+                  v-for="p in portfolioStore.portfolios"
+                  :key="p.id"
+                  class="tag-btn"
+                  :class="{ active: selectedPortfolioIds.includes(p.id) && selectedPortfolioIds.length > 0 }"
+                  @click="togglePortfolio(p.id)"
+                >
+                  {{ p.icon || '💼' }} {{ p.name }}
+                </button>
+              </div>
+            </div>
+            <div class="time-selector">
+              <button
+                v-for="period in periods"
+                :key="period.value"
+                @click="selectedPeriod = period.value"
+                :class="['period-btn', { active: selectedPeriod === period.value }]"
+              >
+                {{ period.label }}
+              </button>
+            </div>
           </div>
         </div>
-        
+
         <div v-if="loadingChart" class="loading">Loading chart...</div>
         <div v-else-if="performanceData.length" class="chart-card">
           <PerformanceChart :data="performanceData" label="Total Value" :selectedRange="selectedPeriod" />
@@ -78,8 +99,8 @@
         <div v-if="portfolioStore.loading" class="loading">Loading portfolios...</div>
 
         <div v-else-if="portfolioStore.portfolios.length" class="portfolio-grid">
-          <div 
-            v-for="portfolio in portfolioStore.portfolios.slice(0, 4)" 
+          <div
+            v-for="portfolio in portfolioStore.portfolios.slice(0, 4)"
             :key="portfolio.id"
             class="portfolio-card"
             @click="$router.push(`/portfolios/${portfolio.id}`)"
@@ -93,10 +114,10 @@
                 <span class="label">Stocks:</span>
                 <span class="value">{{ portfolio.stocks?.length || 0 }}</span>
               </div>
-               <div class="portfolio-stat">
-                 <span class="label">Current Value:</span>
-                 <span class="value">{{ preferencesStore.formatPrice(portfolio.totalValue) }}</span>
-               </div>
+              <div class="portfolio-stat">
+                <span class="label">Current Value:</span>
+                <span class="value">{{ preferencesStore.formatPrice(portfolio.totalValue) }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -126,6 +147,7 @@ const allTimeStats = ref(null)
 const monthlyStats = ref(null)
 const yearlyStats = ref(null)
 const selectedPeriod = ref('1M')
+const selectedPortfolioIds = ref([]) // empty = all
 const performanceData = ref([])
 const loadingChart = ref(false)
 
@@ -142,14 +164,35 @@ const periods = [
 onMounted(async () => {
   await Promise.all([
     fetchAllStats(),
-    portfolioStore.fetchPortfolios(),
-    fetchPerformanceData()
+    portfolioStore.fetchPortfolios()
   ])
+  await fetchPerformanceData()
 })
 
 watch(selectedPeriod, () => {
   fetchPerformanceData()
 })
+
+watch(selectedPortfolioIds, () => {
+  fetchPerformanceData()
+}, { deep: true })
+
+function selectAll() {
+  selectedPortfolioIds.value = []
+}
+
+function togglePortfolio(id) {
+  const idx = selectedPortfolioIds.value.indexOf(id)
+  if (idx === -1) {
+    selectedPortfolioIds.value = [...selectedPortfolioIds.value, id]
+  } else {
+    selectedPortfolioIds.value = selectedPortfolioIds.value.filter(pid => pid !== id)
+  }
+  // If none selected after toggle, show all
+  if (selectedPortfolioIds.value.length === 0) {
+    selectedPortfolioIds.value = []
+  }
+}
 
 async function fetchAllStats() {
   loading.value = true
@@ -172,7 +215,9 @@ async function fetchAllStats() {
 async function fetchPerformanceData() {
   loadingChart.value = true
   try {
-    const response = await api.get(`/stats/performance-history?period=${selectedPeriod.value}`)
+    const params = new URLSearchParams({ period: selectedPeriod.value })
+    selectedPortfolioIds.value.forEach(id => params.append('portfolioIds', id))
+    const response = await api.get(`/stats/portfolio-chart?${params.toString()}`)
     performanceData.value = response.data
   } catch (error) {
     console.error('Failed to fetch performance data:', error)
@@ -180,10 +225,6 @@ async function fetchPerformanceData() {
   } finally {
     loadingChart.value = false
   }
-}
-
-function formatNumber(num) {
-  return num?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'
 }
 
 function formatPercent(num) {
@@ -276,7 +317,7 @@ h1 {
 .section-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 1.5rem;
   flex-wrap: wrap;
   gap: 1rem;
@@ -285,6 +326,56 @@ h1 {
 .section-header h2 {
   margin: 0;
   color: #333;
+}
+
+.chart-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.portfolio-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.selector-label {
+  font-size: 0.85rem;
+  color: #666;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.selector-tags {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.tag-btn {
+  padding: 0.3rem 0.75rem;
+  background: white;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #666;
+  transition: all 0.2s;
+}
+
+.tag-btn:hover {
+  border-color: #667eea;
+  color: #667eea;
+}
+
+.tag-btn.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: transparent;
+  color: white;
 }
 
 .time-selector {
@@ -337,6 +428,7 @@ h1 {
   text-decoration: none;
   font-weight: 600;
   transition: color 0.3s;
+  margin-top: 0.25rem;
 }
 
 .btn-view-all:hover {

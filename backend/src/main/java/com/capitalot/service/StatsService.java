@@ -2,6 +2,7 @@ package com.capitalot.service;
 
 import com.capitalot.dto.PerformanceStats;
 import com.capitalot.dto.PortfolioPerformanceDto;
+import com.capitalot.dto.PricePointDto;
 import com.capitalot.dto.StockPriceResponse;
 import com.capitalot.model.PortfolioHistory;
 import com.capitalot.model.PortfolioStock;
@@ -10,6 +11,7 @@ import com.capitalot.repository.PortfolioHistoryRepository;
 import com.capitalot.repository.PortfolioStockRepository;
 import com.capitalot.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -17,12 +19,11 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class StatsService {
     
     private final PortfolioStockRepository portfolioStockRepository;
@@ -100,8 +101,8 @@ public class StatsService {
         return history.stream()
             .map(h -> PortfolioPerformanceDto.builder()
                 .timestamp(h.getTimestamp())
-                .totalValue(BigDecimal.valueOf(h.getTotalValue()))
-                .gainLoss(BigDecimal.valueOf(h.getGainLoss()))
+                .totalValue(h.getTotalValue())
+                .gainLoss(h.getGainLoss())
                 .build())
             .toList();
     }
@@ -194,8 +195,8 @@ public class StatsService {
             
             points.add(PortfolioPerformanceDto.builder()
                 .timestamp(timestamp)
-                .totalValue(BigDecimal.valueOf(value))
-                .gainLoss(BigDecimal.valueOf(gainLoss))
+                .totalValue(value)
+                .gainLoss(gainLoss)
                 .build());
         }
         
@@ -213,5 +214,77 @@ public class StatsService {
             case "5Y" -> 365 * 5 / 7;
             default -> 30;
         };
+    }
+
+    public List<PortfolioPerformanceDto> getDynamicPortfolioChart(String email, String period, List<Long> portfolioIds) {
+        User user = userRepository.findByEmail(email)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+
+        List<PortfolioStock> stocks;
+        if (portfolioIds == null || portfolioIds.isEmpty()) {
+            stocks = portfolioStockRepository.findByUserId(user.getId());
+        } else {
+            stocks = portfolioStockRepository.findByPortfolioIdInAndUserId(portfolioIds, user.getId());
+        }
+
+        if (stocks.isEmpty()) return new ArrayList<>();
+
+        // Fetch historical prices for each unique symbol (one API call per symbol)
+        // Store as TreeMap<date, price> for efficient floorEntry lookup
+        Map<String, TreeMap<LocalDate, Double>> symbolPriceMaps = new HashMap<>();
+        for (PortfolioStock ps : stocks) {
+            String symbol = ps.getStock().getSymbol();
+            if (!symbolPriceMaps.containsKey(symbol)) {
+                List<PricePointDto> history = stockPriceService.getStockHistory(symbol, period);
+                TreeMap<LocalDate, Double> priceMap = new TreeMap<>();
+                for (PricePointDto p : history) {
+                    if (p.getPrice() != null && p.getPrice() > 0) {
+                        priceMap.put(p.getTimestamp().toLocalDate(), p.getPrice());
+                    }
+                }
+                symbolPriceMaps.put(symbol, priceMap);
+                log.info("Loaded {} price points for symbol {}", priceMap.size(), symbol);
+            }
+        }
+
+        // Collect all trading dates from all histories
+        TreeSet<LocalDate> allDates = new TreeSet<>();
+        for (TreeMap<LocalDate, Double> priceMap : symbolPriceMaps.values()) {
+            allDates.addAll(priceMap.keySet());
+        }
+
+        if (allDates.isEmpty()) return new ArrayList<>();
+
+        // For each trading date, compute total portfolio value
+        List<PortfolioPerformanceDto> result = new ArrayList<>();
+        for (LocalDate date : allDates) {
+            double totalValue = 0.0;
+            boolean hasAnyStock = false;
+
+            for (PortfolioStock ps : stocks) {
+                LocalDate purchaseDay = ps.getPurchaseDate().toLocalDate();
+                if (purchaseDay.isAfter(date)) continue;
+                if (ps.getSaleDate() != null && !ps.getSaleDate().toLocalDate().isAfter(date)) continue;
+
+                String symbol = ps.getStock().getSymbol();
+                TreeMap<LocalDate, Double> priceMap = symbolPriceMaps.get(symbol);
+                // floorEntry = closest known price on or before this date
+                Map.Entry<LocalDate, Double> entry = priceMap.floorEntry(date);
+                if (entry != null && entry.getValue() > 0) {
+                    totalValue += ps.getQuantity().doubleValue() * entry.getValue();
+                    hasAnyStock = true;
+                }
+            }
+
+            if (hasAnyStock) {
+                result.add(PortfolioPerformanceDto.builder()
+                    .timestamp(date.atTime(16, 0))
+                    .totalValue(totalValue)
+                    .build());
+            }
+        }
+
+        log.info("Generated {} chart points for period {}", result.size(), period);
+        return result;
     }
 }

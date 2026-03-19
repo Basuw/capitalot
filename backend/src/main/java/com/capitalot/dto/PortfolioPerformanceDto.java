@@ -5,7 +5,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -14,6 +13,6 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class PortfolioPerformanceDto {
     private LocalDateTime timestamp;
-    private BigDecimal totalValue;
-    private BigDecimal gainLoss;
+    private double totalValue;
+    private double gainLoss;
 }

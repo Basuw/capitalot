@@ -49,14 +49,14 @@
            </div>
          </div>
 
-        <div v-if="showChart && performanceStats?.performanceHistory" class="chart-section">
+        <div v-if="showChart" class="chart-section">
           <div class="chart-header">
             <h3>Portfolio Performance</h3>
             <div class="time-selector">
-              <button 
-                v-for="range in timeRanges" 
+              <button
+                v-for="range in timeRanges"
                 :key="range"
-                @click="selectedRange = range; fetchPerformance()"
+                @click="selectedRange = range; fetchChartData()"
                 :class="{ active: selectedRange === range }"
                 class="time-btn"
               >
@@ -67,15 +67,18 @@
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
           </div>
-          <PerformanceChart 
-            :data="performanceStats.performanceHistory" 
+          <div v-if="loadingChart" class="loading-chart">Loading chart...</div>
+          <PerformanceChart
+            v-else-if="chartData.length"
+            :data="chartData"
             label="Portfolio Value"
-            :selectedRange="selectedRange"
+            :selectedRange="selectedRange === 'ALL' ? '5Y' : selectedRange"
           />
+          <div v-else class="empty-chart">No chart data available</div>
         </div>
-        
+
         <div v-else class="show-chart-section">
-          <button @click="showChart = true; fetchPerformance()" class="btn-secondary">
+          <button @click="showChart = true; fetchChartData()" class="btn-secondary">
             📈 Show Performance Chart
           </button>
         </div>
@@ -456,6 +459,8 @@ const selectedStockForAction = ref(null)
 const selectedStockForHistory = ref(null)
 const purchaseHistory = ref([])
 const performanceStats = ref(null)
+const chartData = ref([])
+const loadingChart = ref(false)
 const selectedRange = ref('1M')
 const timeRanges = ['1D', '1W', '1M', '3M', '6M', '1Y', 'ALL']
 const priceOption = ref('manual')
@@ -511,6 +516,20 @@ async function fetchPerformance() {
     performanceStats.value = response.data
   } catch (error) {
     console.error('Failed to fetch performance:', error)
+  }
+}
+
+async function fetchChartData() {
+  loadingChart.value = true
+  try {
+    const period = selectedRange.value === 'ALL' ? '5Y' : selectedRange.value
+    const response = await api.get(`/stats/portfolio-chart?period=${period}&portfolioIds=${route.params.id}`)
+    chartData.value = response.data
+  } catch (error) {
+    console.error('Failed to fetch chart data:', error)
+    chartData.value = []
+  } finally {
+    loadingChart.value = false
   }
 }
 
@@ -827,6 +846,13 @@ h1 {
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   margin-bottom: 2rem;
+}
+
+.loading-chart,
+.empty-chart {
+  text-align: center;
+  padding: 3rem;
+  color: #666;
 }
 
 .chart-header {

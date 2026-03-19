@@ -91,14 +91,18 @@ const chartData = computed(() => ({
   datasets: [
     {
       label: props.label,
-      data: props.data.map(point => point.totalValue || point.price),
+      data: props.data.map(point => {
+        const v = point.totalValue ?? point.price
+        return v !== undefined && v !== null ? Number(v) : null
+      }),
       borderColor: props.color,
-      backgroundColor: `${props.color}20`,
+      backgroundColor: `${props.color}33`,
       fill: true,
-      tension: 0.4,
-      pointRadius: 0,
+      tension: 0.3,
+      pointRadius: props.data.length <= 30 ? 3 : 0,
       pointHoverRadius: 6,
-      borderWidth: 2
+      borderWidth: 2,
+      spanGaps: true
     }
   ]
 }))

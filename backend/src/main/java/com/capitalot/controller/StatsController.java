@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/stats")
 @RequiredArgsConstructor
@@ -42,5 +44,13 @@ public class StatsController {
             Authentication authentication,
             @RequestParam(required = false, defaultValue = "1M") String period) {
         return ResponseEntity.ok(statsService.getPerformanceHistory(authentication.getName(), period));
+    }
+
+    @GetMapping("/portfolio-chart")
+    public ResponseEntity<List<PortfolioPerformanceDto>> getPortfolioChart(
+            Authentication authentication,
+            @RequestParam(required = false, defaultValue = "1M") String period,
+            @RequestParam(required = false) List<Long> portfolioIds) {
+        return ResponseEntity.ok(statsService.getDynamicPortfolioChart(authentication.getName(), period, portfolioIds));
     }
 }

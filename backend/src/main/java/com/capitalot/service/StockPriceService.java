@@ -249,22 +249,23 @@ public class StockPriceService {
         
         YahooFinanceChartResponse.Quote quote = result.getIndicators().getQuote().get(0);
         List<Double> closePrice = quote.getClose();
-        
-        if (closePrice == null || timestamps.size() != closePrice.size()) {
-            log.warn("Mismatched timestamps and price data");
+
+        if (closePrice == null || closePrice.isEmpty()) {
+            log.warn("No close price data for chart response");
             return points;
         }
-        
-        for (int i = 0; i < timestamps.size(); i++) {
+
+        int count = Math.min(timestamps.size(), closePrice.size());
+        for (int i = 0; i < count; i++) {
             try {
                 Long timestamp = timestamps.get(i);
                 Double price = closePrice.get(i);
-                
+
                 if (timestamp != null && price != null && price != 0.0) {
                     LocalDateTime dateTime = Instant.ofEpochSecond(timestamp)
                         .atZone(ZoneId.systemDefault())
                         .toLocalDateTime();
-                    
+
                     points.add(PricePointDto.builder()
                         .timestamp(dateTime)
                         .price(price)
@@ -274,7 +275,7 @@ public class StockPriceService {
                 log.warn("Failed to parse Yahoo Finance data point at index {}", i, e);
             }
         }
-        
+
         points.sort((a, b) -> a.getTimestamp().compareTo(b.getTimestamp()));
         log.info("Converted {} Yahoo Finance data points", points.size());
         return points;

@@ -25,5 +25,11 @@ public interface PortfolioStockRepository extends JpaRepository<PortfolioStock, 
         @Param("startDate") LocalDateTime startDate,
         @Param("endDate") LocalDateTime endDate
     );
+
+    @Query("SELECT ps FROM PortfolioStock ps WHERE ps.portfolio.id IN :portfolioIds AND ps.portfolio.user.id = :userId")
+    List<PortfolioStock> findByPortfolioIdInAndUserId(
+        @Param("portfolioIds") List<Long> portfolioIds,
+        @Param("userId") Long userId
+    );
 }
 
