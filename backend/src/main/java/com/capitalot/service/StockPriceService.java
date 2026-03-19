@@ -337,7 +337,7 @@ public class StockPriceService {
     }
     
     private boolean shouldUseIntradayData(String period) {
-        return period.equals("1D") || period.equals("1W");
+        return period.equals("1D");
     }
     
     private int getDataPointsForPeriod(String period) {

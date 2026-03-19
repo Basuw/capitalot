@@ -83,6 +83,9 @@ const isMultiYear = computed(() => {
 const chartData = computed(() => ({
   labels: props.data.map(point => {
     const date = new Date(point.timestamp)
+    if (props.selectedRange === '1D') {
+      return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+    }
     if (isMultiYear.value) {
       return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' })
     }
@@ -107,7 +110,7 @@ const chartData = computed(() => ({
   ]
 }))
 
-const chartOptions = {
+const chartOptions = computed(() => ({
   responsive: true,
   maintainAspectRatio: false,
   interaction: {
@@ -197,7 +200,7 @@ const chartOptions = {
     },
     x: {
       ticks: {
-        maxTicksLimit: isMultiYear.value ? 8 : 6,
+        maxTicksLimit: props.selectedRange === '1D' ? 8 : isMultiYear.value ? 8 : 6,
         autoSkip: true
       },
       grid: {
@@ -205,7 +208,7 @@ const chartOptions = {
       }
     }
   }
-}
+}))
 </script>
 
 <style scoped>

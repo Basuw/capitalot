@@ -229,8 +229,69 @@ public class StatsService {
 
         if (stocks.isEmpty()) return new ArrayList<>();
 
-        // Fetch historical prices for each unique symbol (one API call per symbol)
-        // Store as TreeMap<date, price> for efficient floorEntry lookup
+        // For 1D: use full LocalDateTime keys to preserve intraday granularity
+        if ("1D".equals(period)) {
+            return buildIntradayChart(stocks, period);
+        }
+        return buildDailyChart(stocks, period);
+    }
+
+    private List<PortfolioPerformanceDto> buildIntradayChart(List<PortfolioStock> stocks, String period) {
+        Map<String, TreeMap<LocalDateTime, Double>> symbolPriceMaps = new HashMap<>();
+        for (PortfolioStock ps : stocks) {
+            String symbol = ps.getStock().getSymbol();
+            if (!symbolPriceMaps.containsKey(symbol)) {
+                List<PricePointDto> history = stockPriceService.getStockHistory(symbol, period);
+                TreeMap<LocalDateTime, Double> priceMap = new TreeMap<>();
+                for (PricePointDto p : history) {
+                    if (p.getPrice() != null && p.getPrice() > 0) {
+                        priceMap.put(p.getTimestamp(), p.getPrice());
+                    }
+                }
+                symbolPriceMaps.put(symbol, priceMap);
+                log.info("Loaded {} intraday price points for symbol {}", priceMap.size(), symbol);
+            }
+        }
+
+        TreeSet<LocalDateTime> allTimestamps = new TreeSet<>();
+        for (TreeMap<LocalDateTime, Double> priceMap : symbolPriceMaps.values()) {
+            allTimestamps.addAll(priceMap.keySet());
+        }
+
+        if (allTimestamps.isEmpty()) return new ArrayList<>();
+
+        List<PortfolioPerformanceDto> result = new ArrayList<>();
+        for (LocalDateTime ts : allTimestamps) {
+            double totalValue = 0.0;
+            boolean hasAnyStock = false;
+            LocalDate tsDate = ts.toLocalDate();
+
+            for (PortfolioStock ps : stocks) {
+                // Skip stocks sold before this timestamp
+                if (ps.getSaleDate() != null && !ps.getSaleDate().toLocalDate().isAfter(tsDate)) continue;
+
+                String symbol = ps.getStock().getSymbol();
+                TreeMap<LocalDateTime, Double> priceMap = symbolPriceMaps.get(symbol);
+                Map.Entry<LocalDateTime, Double> entry = priceMap.floorEntry(ts);
+                if (entry != null && entry.getValue() > 0) {
+                    totalValue += ps.getQuantity().doubleValue() * entry.getValue();
+                    hasAnyStock = true;
+                }
+            }
+
+            if (hasAnyStock) {
+                result.add(PortfolioPerformanceDto.builder()
+                    .timestamp(ts)
+                    .totalValue(totalValue)
+                    .build());
+            }
+        }
+
+        log.info("Generated {} intraday chart points for period {}", result.size(), period);
+        return result;
+    }
+
+    private List<PortfolioPerformanceDto> buildDailyChart(List<PortfolioStock> stocks, String period) {
         Map<String, TreeMap<LocalDate, Double>> symbolPriceMaps = new HashMap<>();
         for (PortfolioStock ps : stocks) {
             String symbol = ps.getStock().getSymbol();
@@ -247,7 +308,6 @@ public class StatsService {
             }
         }
 
-        // Collect all trading dates from all histories
         TreeSet<LocalDate> allDates = new TreeSet<>();
         for (TreeMap<LocalDate, Double> priceMap : symbolPriceMaps.values()) {
             allDates.addAll(priceMap.keySet());
@@ -255,20 +315,17 @@ public class StatsService {
 
         if (allDates.isEmpty()) return new ArrayList<>();
 
-        // For each trading date, compute total portfolio value
         List<PortfolioPerformanceDto> result = new ArrayList<>();
         for (LocalDate date : allDates) {
             double totalValue = 0.0;
             boolean hasAnyStock = false;
 
             for (PortfolioStock ps : stocks) {
-                LocalDate purchaseDay = ps.getPurchaseDate().toLocalDate();
-                if (purchaseDay.isAfter(date)) continue;
+                // Skip stocks sold before this date
                 if (ps.getSaleDate() != null && !ps.getSaleDate().toLocalDate().isAfter(date)) continue;
 
                 String symbol = ps.getStock().getSymbol();
                 TreeMap<LocalDate, Double> priceMap = symbolPriceMaps.get(symbol);
-                // floorEntry = closest known price on or before this date
                 Map.Entry<LocalDate, Double> entry = priceMap.floorEntry(date);
                 if (entry != null && entry.getValue() > 0) {
                     totalValue += ps.getQuantity().doubleValue() * entry.getValue();
