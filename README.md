@@ -203,16 +203,16 @@ npm test
 
 ## Roadmap
 
-- [ ] Integrate real stock price API
-- [ ] Add portfolio detail view with charts
-- [ ] Implement stock price history tracking
+- [x] Integrate real stock price API
+- [x] Add portfolio detail view with charts
+- [x] Implement stock price history tracking
 - [ ] Add transaction history
-- [ ] Create performance visualization charts
-- [ ] Add portfolio diversification analysis
+- [x] Create performance visualization charts
+- [x] Add portfolio diversification analysis
 - [ ] Implement email notifications
 - [ ] Add mobile responsive design
 - [ ] Create export functionality (CSV, PDF)
-- [ ] Add multi-currency support
+- [x] Add multi-currency support
 
 ## License
 
@@ -221,3 +221,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Support
 
 For questions or issues, please open an issue on GitHub.
+
+## Author
+
+Bastien Jacquelin
