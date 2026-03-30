@@ -1,202 +1,183 @@
-# Capitalot
+# Capitalot - Smart Investment Portfolio Tracker
 
-**Where Your Money Works Smarter**
+![Capitalot Dashboard](res/screenshots/home.png)
 
-A full-stack investment portfolio tracking application built with Spring Boot, Angular, and PostgreSQL.
+**Transform Your Investment Journey with Capitalot**  
+*Where Your Money Works Smarter, Not Harder*
 
-## Features
+Capitalot is your ultimate companion for mastering the stock market. Whether you're a seasoned investor or just starting out, our intuitive platform empowers you to track, analyze, and optimize your investment portfolios with real-time data and powerful analytics.
 
-- **Portfolio Management**: Create and manage multiple investment portfolios
-- **Stock Tracking**: Track stocks with purchase price, quantity, and acquisition date
-- **Watchlists**: Monitor stocks of interest with real-time search
-- **Performance Analytics**: View daily, monthly, yearly, and all-time performance statistics
-- **User Authentication**: Secure JWT-based authentication with OAuth2 Google integration ready
-- **Tag System**: Organize and categorize stocks with custom tags
+## 🚀 What Capitalot Does For You
 
-## Tech Stack
+Capitalot revolutionizes portfolio management by providing:
 
-### Backend
-- Spring Boot 3.2.0
-- PostgreSQL 16
-- Spring Security + JWT
-- Spring Data JPA
-- OAuth2 Client (Google ready)
+- **📊 Real-Time Portfolio Tracking**: Monitor your investments 24/7 with live stock prices and performance metrics
+- **🎯 Smart Watchlists**: Never miss an opportunity with customizable watchlists and instant alerts
+- **📈 Performance Analytics**: Deep insights into your portfolio's performance across daily, monthly, yearly, and all-time periods
+- **🏷️ Intelligent Organization**: Tag and categorize your stocks for better portfolio organization
+- **🔒 Secure & Private**: Your financial data stays yours with enterprise-grade security
 
-### Frontend
-- Angular 17
-- TypeScript
-- RxJS
-- Angular Router with lazy loading
+## 💡 How It Works
+
+### 1. **Create Your Portfolio**
+Start by building personalized portfolios tailored to your investment strategy.
+
+![Portfolio Management](res/screenshots/portfolio.png)
+
+### 2. **Discover & Track Stocks**
+Search thousands of stocks worldwide and add them to your portfolio with purchase details.
+
+![Stock Search](res/screenshots/stocks.png)
+
+### 3. **Monitor Performance**
+Get detailed analytics and performance statistics to make informed decisions.
+
+![Stock Details](res/screenshots/stock-details.png)
+
+### 4. **Build Watchlists**
+Keep an eye on potential investments with flexible watchlists.
+
+![Watchlist](res/screenshots/watchlist.png)
+![Add to Watchlist](res/screenshots/add-watchlist.png)
+
+### 5. **Stay Informed**
+Access the latest market news and company insights directly in the app.
+
+![Stock News](res/screenshots/stock-news.png)
+
+### 6. **Customize Your Experience**
+Personalize the app to match your preferences and workflow.
+
+![Settings](res/screenshots/settings.png)
+
+## 🔧 Powerful API Integrations
+
+Capitalot leverages industry-leading financial APIs to deliver accurate, real-time data:
+
+### **Yahoo Finance API** - Primary Data Provider
+- **Stock Search**: Instant search across global markets with company profiles
+- **Real-Time Prices**: Live stock quotes and historical data
+- **Market Data**: Comprehensive financial metrics and company information
+
+### **Finnhub API** - Enhanced Analytics (Optional)
+- **Advanced Metrics**: Detailed financial ratios and performance indicators
+- **Company Profiles**: In-depth business information and sector analysis
+- **Market News**: Curated financial news and market insights
+
+### **Google OAuth2** - Secure Authentication
+- **One-Click Login**: Seamless authentication with your Google account
+- **Enhanced Security**: Industry-standard OAuth2 implementation
+
+## 🛠️ Tech Stack
+
+### Backend (Spring Boot)
+- **Framework**: Spring Boot 3.2.0 with Spring Security & JWT
+- **Database**: PostgreSQL 16 with JPA/Hibernate
+- **API**: RESTful endpoints with comprehensive documentation
+
+### Frontend (Vue.js)
+- **Framework**: Vue.js 3 with TypeScript
+- **UI**: Modern, responsive design with intuitive navigation
+- **State Management**: Pinia for reactive data handling
 
 ### Infrastructure
-- Docker & Docker Compose
-- Nginx (frontend reverse proxy)
+- **Containerization**: Docker & Docker Compose for easy deployment
+- **Reverse Proxy**: Nginx for optimized frontend serving
+- **Development**: Hot-reload development environments
 
-## Quick Start
+## 🚀 Quick Start
 
-### Prerequisites
-- Docker and Docker Compose
-- (Optional) Java 17+ and Node.js 18+ for local development
+Get Capitalot running in minutes:
 
-### Running with Docker
-
-1. Clone the repository:
 ```bash
 git clone <repository-url>
 cd capitalot
-```
-
-2. Copy environment file and configure:
-```bash
 cp .env.example .env
-```
-
-3. Start all services:
-```bash
 docker-compose up -d
 ```
 
-4. Access the application:
-- Frontend: http://localhost:4200
-- Backend API: http://localhost:8080
-- PostgreSQL: localhost:5432
+Visit **http://localhost:4200** and start investing smarter!
 
-### Default Users
+**Demo Account**:  
+Email: demo@capitalot.com  
+Password: password
 
-The application initializes with sample data:
-- **Email**: demo@capitalot.com
-- **Password**: password
+## 📋 Key Features
 
-## Project Structure
+### Portfolio Management
+- Create unlimited portfolios
+- Track purchase price, quantity, and dates
+- Calculate gains/losses automatically
+- Multi-portfolio support for different strategies
 
-```
-capitalot/
-├── backend/                 # Spring Boot application
-│   ├── src/main/java/com/capitalot/
-│   │   ├── config/         # Security, data initialization
-│   │   ├── controller/     # REST API endpoints
-│   │   ├── dto/            # Data transfer objects
-│   │   ├── model/          # JPA entities
-│   │   ├── repository/     # Data access layer
-│   │   ├── security/       # JWT, user details
-│   │   └── service/        # Business logic
-│   └── src/main/resources/
-│       └── application.yml # Configuration
-├── frontend/                # Angular application
-│   └── src/app/
-│       ├── components/     # UI components
-│       ├── guards/         # Route guards
-│       ├── interceptors/   # HTTP interceptors
-│       ├── models/         # TypeScript interfaces
-│       └── services/       # API services
-└── docker-compose.yml      # Container orchestration
-```
+### Advanced Analytics
+- Daily, monthly, yearly performance
+- All-time portfolio statistics
+- Visual performance charts
+- Comparative analysis tools
 
-## API Endpoints
+### Stock Discovery
+- Global stock search
+- Real-time price updates
+- Company profiles and metrics
+- Market news integration
+
+### Security & Privacy
+- JWT-based authentication
+- OAuth2 Google integration
+- Secure data encryption
+- Private financial data storage
+
+## 🔌 API Endpoints Overview
 
 ### Authentication
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - Login with email/password
-- `GET /api/auth/oauth2/authorization/google` - OAuth2 Google login
+- `POST /api/auth/register` - Create new account
+- `POST /api/auth/login` - Secure login
+- `GET /api/auth/oauth2/authorization/google` - Google OAuth login
 
-### Portfolios
-- `GET /api/portfolios` - List user portfolios
-- `POST /api/portfolios` - Create portfolio
-- `PUT /api/portfolios/{id}` - Update portfolio
-- `DELETE /api/portfolios/{id}` - Delete portfolio
-- `POST /api/portfolios/{id}/stocks` - Add stock to portfolio
-- `DELETE /api/portfolios/{portfolioId}/stocks/{stockId}` - Remove stock
+### Portfolio Operations
+- `GET /api/portfolios` - View all portfolios
+- `POST /api/portfolios` - Create new portfolio
+- `POST /api/portfolios/{id}/stocks` - Add stocks to portfolio
 
-### Watchlists
-- `GET /api/watchlists` - List user watchlists
+### Watchlist Management
+- `GET /api/watchlists` - Access watchlists
 - `POST /api/watchlists` - Create watchlist
-- `PUT /api/watchlists/{id}` - Update watchlist
-- `DELETE /api/watchlists/{id}` - Delete watchlist
-- `POST /api/watchlists/{id}/stocks` - Add stock to watchlist
-- `DELETE /api/watchlists/{watchlistId}/stocks/{stockId}` - Remove stock
+- `POST /api/watchlists/{id}/stocks` - Add stocks to watch
 
-### Stocks
-- `GET /api/stocks/search?query={query}` - Search stocks
-- `GET /api/stocks/{symbol}/price` - Get current stock price
+### Stock Data
+- `GET /api/stocks/search` - Search global stocks
+- `GET /api/stocks/{symbol}/price` - Get live prices
 
-### Statistics
-- `GET /api/stats/performance` - Get performance statistics
+### Analytics
+- `GET /api/stats/performance` - Portfolio analytics
 
-## Development
+## 💼 Why Choose Capitalot?
 
-### Backend Development
+- **User-Friendly**: Intuitive interface designed for all experience levels
+- **Real-Time Data**: Always up-to-date with market changes
+- **Comprehensive**: Everything you need in one platform
+- **Secure**: Your data is protected with bank-level security
+- **Fast**: Lightning-quick performance with modern architecture
+- **Free**: Start tracking your investments without any cost
 
-```bash
-cd backend
-./mvnw spring-boot:run
-```
+## 🏆 Perfect For
 
-Configuration in `backend/src/main/resources/application.yml`
+- **Individual Investors**: Manage personal portfolios with ease
+- **Day Traders**: Real-time data for quick decisions
+- **Long-term Investors**: Track performance over time
+- **Financial Advisors**: Organize client portfolios
+- **Students**: Learn investing with real market data
 
-### Frontend Development
+## 📞 Get Started Today
 
-```bash
-cd frontend
-npm install
-npm start
-```
+Ready to take control of your investments? Capitalot makes portfolio management simple, powerful, and profitable.
 
-Navigate to http://localhost:4200
+**Start your journey to smarter investing now!** 🚀
 
-### Database
+---
 
-Connect to PostgreSQL:
-```bash
-docker exec -it capitalot-postgres psql -U capitalot -d capitalot
-```
-
-## Configuration
-
-### Environment Variables
-
-See `.env.example` for all available configuration options:
-
-- `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` - Database credentials
-- `JWT_SECRET` - Secret key for JWT token generation
-- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` - OAuth2 Google credentials
-
-### Google OAuth2 Setup
-
-1. Create OAuth2 credentials at [Google Cloud Console](https://console.cloud.google.com/)
-2. Add authorized redirect URI: `http://localhost:8080/login/oauth2/code/google`
-3. Update `.env` with your client ID and secret
-4. Restart the application
-
-## API Integrations
-
-The following services have been fully integrated with real-time financial data:
-
-- **StockSearchService**: Uses Yahoo Finance API for searching and auto-discovering stocks
-- **StockPriceService**: Fetches real-time and historical prices via Yahoo Finance
-- **StockEnrichmentService**: Enhances stock profiles with company details from Yahoo Finance
-
-### Data Providers
-
-- [Yahoo Finance API](https://query1.finance.yahoo.com) - Main provider for real-time and historical data
-- [Finnhub](https://finnhub.io/) - Optional financial data provider
-
-## Security Notes
-
-- JWT tokens are stored in browser localStorage
-- All API requests require authentication (except login/register)
-- CORS is configured for development (localhost:4200)
-- For production, update CORS settings in `SecurityConfig.java`
-- Change default JWT secret in production environment
-
-## Docker Commands
-
-```bash
-docker-compose up -d          # Start all services
-docker-compose down           # Stop all services
-docker-compose logs -f        # View logs
-docker-compose restart        # Restart services
-docker-compose ps             # List running containers
-```
+*Capitalot - Where Smart Investors Thrive*
 
 ## Testing
 
