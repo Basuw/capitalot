@@ -1,7 +1,7 @@
 <template>
   <div class="sidebar">
     <div class="sidebar-brand">
-      <div class="brand-icon">💼</div>
+      <img src="/favicon.png" alt="Capitalot" class="brand-icon" />
       <h1>Capitalot</h1>
     </div>
     
@@ -99,8 +99,10 @@ function logout() {
 }
 
 .brand-icon {
-  font-size: 2.5rem;
+  width: 48px;
+  height: 48px;
   margin-bottom: 0.5rem;
+  object-fit: contain;
 }
 
 .sidebar-brand h1 {
