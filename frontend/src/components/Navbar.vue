@@ -1,7 +1,7 @@
 <template>
   <div class="sidebar">
     <div class="sidebar-brand">
-      <img src="/favicon.png" alt="Capitalot" class="brand-icon" />
+      <img src="/res/icon/capitalot_icon.png" alt="Capitalot" class="brand-icon" />
       <h1>Capitalot</h1>
     </div>
     
