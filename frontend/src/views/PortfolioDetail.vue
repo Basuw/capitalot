@@ -87,14 +87,30 @@
           <table>
             <thead>
               <tr>
-                <th>Symbol</th>
-                <th>Name</th>
-                <th>Type</th>
-                <th>Shares</th>
-                <th>Avg. Buy Price</th>
-                <th>Current Price</th>
-                <th>Total Value</th>
-                <th>Gain/Loss</th>
+                <th @click="sortBy('symbol')" class="sortable">
+                  Symbol <span class="sort-icon">{{ sortField === 'symbol' ? (sortDirection === 'asc' ? '↑' : '↓') : '⇅' }}</span>
+                </th>
+                <th @click="sortBy('name')" class="sortable">
+                  Name <span class="sort-icon">{{ sortField === 'name' ? (sortDirection === 'asc' ? '↑' : '↓') : '⇅' }}</span>
+                </th>
+                <th @click="sortBy('type')" class="sortable">
+                  Type <span class="sort-icon">{{ sortField === 'type' ? (sortDirection === 'asc' ? '↑' : '↓') : '⇅' }}</span>
+                </th>
+                <th @click="sortBy('quantity')" class="sortable">
+                  Shares <span class="sort-icon">{{ sortField === 'quantity' ? (sortDirection === 'asc' ? '↑' : '↓') : '⇅' }}</span>
+                </th>
+                <th @click="sortBy('purchasePrice')" class="sortable">
+                  Avg. Buy Price <span class="sort-icon">{{ sortField === 'purchasePrice' ? (sortDirection === 'asc' ? '↑' : '↓') : '⇅' }}</span>
+                </th>
+                <th @click="sortBy('currentPrice')" class="sortable">
+                  Current Price <span class="sort-icon">{{ sortField === 'currentPrice' ? (sortDirection === 'asc' ? '↑' : '↓') : '⇅' }}</span>
+                </th>
+                <th @click="sortBy('currentValue')" class="sortable">
+                  Total Value <span class="sort-icon">{{ sortField === 'currentValue' ? (sortDirection === 'asc' ? '↑' : '↓') : '⇅' }}</span>
+                </th>
+                <th @click="sortBy('gainLoss')" class="sortable">
+                  Gain/Loss <span class="sort-icon">{{ sortField === 'gainLoss' ? (sortDirection === 'asc' ? '↑' : '↓') : '⇅' }}</span>
+                </th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -483,7 +499,46 @@ const editForm = ref({
   link: ''
 })
 
-const stocks = computed(() => portfolioStore.currentPortfolio?.stocks || [])
+const sortField = ref('symbol')
+const sortDirection = ref('asc')
+
+function sortBy(field) {
+  if (sortField.value === field) {
+    sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortField.value = field
+    sortDirection.value = 'asc'
+  }
+}
+
+function getSortValue(stock, field) {
+  switch (field) {
+    case 'symbol':       return stock.stock?.symbol?.toLowerCase() ?? ''
+    case 'name':         return stock.stock?.name?.toLowerCase() ?? ''
+    case 'type':         return stock.stock?.type?.toLowerCase() ?? ''
+    case 'quantity':     return stock.quantity ?? 0
+    case 'purchasePrice': return stock.purchasePrice ?? 0
+    case 'currentPrice': return stock.currentPrice ?? 0
+    case 'currentValue': return stock.currentValue ?? 0
+    case 'gainLoss':     return stock.gainLoss ?? 0
+    default:             return ''
+  }
+}
+
+const stocks = computed(() => {
+  const raw = portfolioStore.currentPortfolio?.stocks ?? []
+  return [...raw].sort((a, b) => {
+    const aVal = getSortValue(a, sortField.value)
+    const bVal = getSortValue(b, sortField.value)
+    let cmp = 0
+    if (typeof aVal === 'string') {
+      cmp = aVal.localeCompare(bVal)
+    } else {
+      cmp = aVal - bVal
+    }
+    return sortDirection.value === 'asc' ? cmp : -cmp
+  })
+})
 
 onMounted(() => {
   portfolioStore.fetchPortfolioById(route.params.id).then(() => {
@@ -931,11 +986,29 @@ table {
 }
 
 th {
-  background: #667eea;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   padding: 1rem;
   text-align: left;
   font-weight: 600;
+}
+
+th.sortable {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+
+th.sortable:hover {
+  background: linear-gradient(135deg, #5a6fd6 0%, #6a3f92 100%);
+}
+
+.sort-icon {
+  display: inline-block;
+  margin-left: 0.4rem;
+  font-size: 0.8rem;
+  opacity: 0.8;
 }
 
 td {

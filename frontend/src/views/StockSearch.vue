@@ -176,25 +176,32 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import Navbar from '../components/Navbar.vue'
 import api from '../services/api'
 import { usePreferencesStore } from '../stores/preferences'
+import { useStockSearchStore } from '../stores/stockSearch'
 import { formatPrice, getCurrencySymbol } from '../services/currency'
 
 const router = useRouter()
 const preferencesStore = usePreferencesStore()
+const searchStore = useStockSearchStore()
 
-const searchQuery = ref('')
-const searchResults = ref([])
+const {
+  searchQuery,
+  searchResults,
+  selectedSector,
+  selectedIndustry,
+  selectedRisk,
+  sortField,
+  sortDirection,
+  currentPage,
+  lastRefresh,
+  hasLoaded
+} = storeToRefs(searchStore)
+
 const searching = ref(false)
 const refreshing = ref(false)
-const lastRefresh = ref('')
-const selectedSector = ref('')
-const selectedIndustry = ref('')
-const selectedRisk = ref('')
-const sortField = ref('symbol')
-const sortDirection = ref('asc')
-const currentPage = ref(1)
 const itemsPerPage = 20
 
 let searchTimeout = null
@@ -265,11 +272,12 @@ watch([selectedSector, selectedIndustry, selectedRisk], () => {
 })
 
 onMounted(async () => {
-  await loadAllStocks()
-  
+  if (!hasLoaded.value) {
+    await loadAllStocks()
+  }
+
   // Auto-refresh prices every 2 minutes
   autoRefreshInterval = setInterval(async () => {
-    console.log('Auto-refreshing stock prices...')
     if (!searching.value && !refreshing.value) {
       await refreshPrices()
     }
@@ -287,12 +295,7 @@ async function loadAllStocks() {
   try {
     const response = await api.get('/stocks/search')
     searchResults.value = response.data
-    console.log('[DEBUG] Loaded popular stocks with prices:', searchResults.value.map(s => ({
-      symbol: s.symbol,
-      price: s.currentPrice,
-      marketDate: s.lastPriceUpdate || 'N/A',
-      fetchDate: new Date().toLocaleString()
-    })))
+    hasLoaded.value = true
     updateLastRefresh()
   } catch (error) {
     console.error('Failed to load stocks:', error)
@@ -317,12 +320,7 @@ function handleSearch() {
     try {
       const response = await api.get(`/stocks/search?query=${encodeURIComponent(searchQuery.value)}`)
       searchResults.value = response.data
-      console.log('[DEBUG] Search results with prices:', searchResults.value.map(s => ({
-        symbol: s.symbol,
-        price: s.currentPrice,
-        marketDate: s.lastPriceUpdate || 'N/A',
-        fetchDate: new Date().toLocaleString()
-      })))
+      hasLoaded.value = true
       currentPage.value = 1
     } catch (error) {
       console.error('Search failed:', error)
