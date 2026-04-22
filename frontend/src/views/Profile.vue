@@ -170,6 +170,32 @@
           {{ saveMessage }}
         </div>
       </div>
+
+      <div class="preferences-section export-section">
+        <h2>📥 Export des données</h2>
+        <p class="section-description">
+          Téléchargez tous vos portfolios et actions au format CSV, compatible Excel et Google Sheets.
+        </p>
+        <div class="export-row">
+          <div class="export-info">
+            <div class="export-icon">📊</div>
+            <div>
+              <h3>Export complet des portfolios</h3>
+              <p>Génère un fichier CSV avec chaque portfolio, chaque action, les quantités, prix d'achat, valeur actuelle et gain/perte.</p>
+            </div>
+          </div>
+          <button @click="exportCSV" :disabled="exporting" class="btn-export">
+            <svg v-if="!exporting" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <svg v-else class="spinner" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/>
+            </svg>
+            {{ exporting ? 'Export en cours...' : 'Exporter en CSV' }}
+          </button>
+        </div>
+        <div v-if="exportError" class="save-message error">{{ exportError }}</div>
+      </div>
     </div>
   </div>
 </template>
@@ -178,8 +204,101 @@
 import { ref, onMounted } from 'vue'
 import Navbar from '../components/Navbar.vue'
 import { usePreferencesStore } from '../stores/preferences'
+import { usePortfolioStore } from '../stores/portfolio'
+import api from '../services/api'
 
 const preferencesStore = usePreferencesStore()
+const portfolioStore = usePortfolioStore()
+
+const exporting = ref(false)
+const exportError = ref('')
+
+async function exportCSV() {
+  exporting.value = true
+  exportError.value = ''
+  try {
+    // Récupère la liste des portfolios
+    const portfolios = await portfolioStore.fetchPortfolios()
+
+    // Récupère chaque portfolio avec ses actions
+    const detailed = await Promise.all(
+      portfolios.map(p => api.get(`/portfolios/${p.id}`).then(r => r.data))
+    )
+
+    const currency = preferencesStore.preferences?.currency || 'USD'
+    const now = new Date().toLocaleString('fr-FR')
+
+    const headers = [
+      'Portfolio',
+      'Symbole',
+      'Nom',
+      'Type',
+      'Quantité',
+      'Prix moyen achat',
+      'Prix actuel',
+      'Valeur totale',
+      'Gain/Perte',
+      'Gain/Perte (%)',
+      `Devise`
+    ]
+
+    const rows = []
+    for (const portfolio of detailed) {
+      const stocks = portfolio.stocks || []
+      if (stocks.length === 0) {
+        rows.push([escapeCsv(portfolio.name), '', '', '', '', '', '', '', '', '', currency])
+      } else {
+        for (const s of stocks) {
+          rows.push([
+            escapeCsv(portfolio.name),
+            escapeCsv(s.stock?.symbol ?? ''),
+            escapeCsv(s.stock?.name ?? ''),
+            escapeCsv(s.stock?.type ?? ''),
+            formatNum(s.quantity),
+            formatNum(s.purchasePrice),
+            formatNum(s.currentPrice),
+            formatNum(s.currentValue),
+            formatNum(s.gainLoss),
+            formatNum(s.gainLossPercentage),
+            currency
+          ])
+        }
+      }
+    }
+
+    const csvContent = [
+      `# Export Capitalot — ${now}`,
+      headers.join(';'),
+      ...rows.map(r => r.join(';'))
+    ].join('\n')
+
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `capitalot_export_${new Date().toISOString().slice(0, 10)}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    console.error('Export failed:', e)
+    exportError.value = 'Erreur lors de l\'export. Veuillez réessayer.'
+  } finally {
+    exporting.value = false
+  }
+}
+
+function escapeCsv(val) {
+  if (val == null) return ''
+  const str = String(val)
+  return str.includes(';') || str.includes('"') || str.includes('\n')
+    ? `"${str.replace(/"/g, '""')}"`
+    : str
+}
+
+function formatNum(val) {
+  if (val == null) return ''
+  return Number(val).toFixed(2).replace('.', ',')
+}
 const preferences = ref({
   showAnnualizedReturn: false,
   showBenchmarkComparison: false,
@@ -422,9 +541,97 @@ input:checked + .slider:before {
   color: #991b1b;
 }
 
+.export-section {
+  margin-top: 2rem;
+}
+
+.export-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 1.5rem;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 2px solid #e0e0e0;
+  flex-wrap: wrap;
+}
+
+.export-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.export-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.export-info h3 {
+  margin: 0 0 0.4rem 0;
+  font-size: 1rem;
+  color: #333;
+}
+
+.export-info p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #666;
+  line-height: 1.4;
+}
+
+.btn-export {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.85rem 1.75rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+  flex-shrink: 0;
+}
+
+.btn-export:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(102, 126, 234, 0.4);
+}
+
+.btn-export:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
 @media (max-width: 768px) {
   .preferences-grid {
     grid-template-columns: 1fr;
+  }
+
+  .export-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .btn-export {
+    width: 100%;
+    justify-content: center;
   }
 }
 </style>
