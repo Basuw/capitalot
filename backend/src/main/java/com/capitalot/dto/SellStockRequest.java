@@ -9,4 +9,5 @@ import java.time.LocalDateTime;
 public class SellStockRequest {
     private BigDecimal salePrice;
     private LocalDateTime saleDate;
+    private BigDecimal quantity; // null = full sell
 }

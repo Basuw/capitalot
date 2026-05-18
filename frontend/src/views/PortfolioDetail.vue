@@ -150,6 +150,48 @@
           <button @click="showAddStockModal = true" class="btn-primary">Add Your First Stock</button>
         </div>
 
+        <div v-if="soldStocks.length" class="sold-history-section">
+          <div class="sold-history-header" @click="showSoldHistory = !showSoldHistory">
+            <h3>📋 Transaction History ({{ soldStocks.length }})</h3>
+            <span class="expand-icon">{{ showSoldHistory ? '▼' : '▶' }}</span>
+          </div>
+          <div v-if="showSoldHistory" class="sold-history-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Symbol</th>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Shares Sold</th>
+                  <th>Avg Buy Price</th>
+                  <th>Sale Price</th>
+                  <th>Sale Date</th>
+                  <th>Realized P&amp;L</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="stock in soldStocks" :key="stock.id">
+                  <td class="symbol">
+                    <router-link :to="`/stocks/${stock.stock.symbol}`" class="stock-link">
+                      {{ stock.stock.symbol }}
+                    </router-link>
+                  </td>
+                  <td>{{ stock.stock.name }}</td>
+                  <td><span class="badge">{{ stock.stock.type }}</span></td>
+                  <td>{{ formatNumber(stock.quantity) }}</td>
+                  <td>{{ preferencesStore.formatPrice(stock.purchasePrice) }}</td>
+                  <td>{{ preferencesStore.formatPrice(stock.salePrice) }}</td>
+                  <td>{{ formatDateTime(stock.saleDate) }}</td>
+                  <td :class="(stock.gainLoss || 0) >= 0 ? 'positive' : 'negative'">
+                    {{ preferencesStore.formatPrice(stock.gainLoss) }}
+                    ({{ formatPercent(stock.gainLossPercentage) }}%)
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <Modal :show="showAddStockModal" title="Add Stock to Portfolio" @close="closeAddStockModal">
           <form @submit.prevent="addStock">
             <div class="form-group">
@@ -291,10 +333,60 @@
            <form @submit.prevent="sellStock">
              <div v-if="selectedStockToSell" class="selected-stock-info">
                <h4>{{ selectedStockToSell.stock.symbol }} - {{ selectedStockToSell.stock.name }}</h4>
-               <p>Quantity: {{ formatNumber(selectedStockToSell.quantity) }}</p>
-               <p>Purchase Price: {{ preferencesStore.formatPrice(selectedStockToSell.purchasePrice) }}</p>
+               <p>Total Shares: {{ formatNumber(selectedStockToSell.quantity) }}</p>
+               <p>Avg. Buy Price: {{ preferencesStore.formatPrice(selectedStockToSell.purchasePrice) }}</p>
                <p>Current Price: {{ preferencesStore.formatPrice(selectedStockToSell.currentPrice) }}</p>
              </div>
+
+            <div class="form-group">
+              <label for="saleQuantity">Quantity to Sell</label>
+              <input
+                id="saleQuantity"
+                v-model.number="sellForm.quantity"
+                type="number"
+                step="0.000001"
+                min="0.000001"
+                :max="selectedStockToSell?.quantity"
+                required
+                placeholder="0"
+              />
+              <small class="helper-text">Available: {{ formatNumber(selectedStockToSell?.quantity || 0) }} shares</small>
+            </div>
+
+            <div class="form-group">
+              <label>Price Option</label>
+              <div class="radio-group">
+                <label class="radio-option">
+                  <input
+                    type="radio"
+                    v-model="sellPriceOption"
+                    value="manual"
+                    @change="onSalePriceOptionChange"
+                  />
+                  <span>Enter price manually</span>
+                </label>
+                <label class="radio-option">
+                  <input
+                    type="radio"
+                    v-model="sellPriceOption"
+                    value="date"
+                    @change="onSalePriceOptionChange"
+                  />
+                  <span>Get price by sale date</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="saleDate">Sale Date</label>
+              <input
+                id="saleDate"
+                v-model="sellForm.saleDate"
+                type="datetime-local"
+                required
+                @change="onSaleDateChange"
+              />
+            </div>
 
             <div class="form-group">
               <label for="salePrice">Sale Price</label>
@@ -306,17 +398,15 @@
                 min="0"
                 required
                 placeholder="0.00"
+                :disabled="sellPriceOption === 'date'"
+                :class="{ 'loading-price': loadingHistoricalSalePrice }"
               />
-            </div>
-
-            <div class="form-group">
-              <label for="saleDate">Sale Date</label>
-              <input
-                id="saleDate"
-                v-model="sellForm.saleDate"
-                type="datetime-local"
-                required
-              />
+              <small v-if="sellPriceOption === 'date'" class="helper-text">
+                Price will be fetched automatically based on sale date
+              </small>
+              <small v-if="loadingHistoricalSalePrice" class="helper-text loading">
+                Loading historical price...
+              </small>
             </div>
 
             <div class="form-actions">
@@ -377,8 +467,9 @@
 
         <Modal :show="showPurchaseHistoryModal" title="Purchase History" size="large" @close="closePurchaseHistoryModal">
           <div v-if="selectedStockForHistory" class="purchase-history-content">
-            <div class="stock-summary">
-              <h4>{{ selectedStockForHistory.stock.symbol }} - {{ selectedStockForHistory.stock.name }}</h4>
+            <div class="purchase-history-header">
+              <div class="stock-summary">
+                <h4>{{ selectedStockForHistory.stock.symbol }} - {{ selectedStockForHistory.stock.name }}</h4>
                <div class="summary-stats">
                  <div class="summary-item">
                    <span class="summary-label">Total Shares:</span>
@@ -399,10 +490,22 @@
                    </span>
                  </div>
                </div>
+              </div>
+              <div class="history-actions">
+                <button @click="openBuyFromHistory" class="btn-primary">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                  Buy
+                </button>
+                <button @click="openSellFromHistory" class="btn-sell-history">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><polyline points="17 18 12 23 7 18"></polyline></svg>
+                  Sell
+                </button>
+              </div>
             </div>
 
             <div v-if="purchaseHistory.length" class="purchases-table-container">
               <h5>Individual Purchases</h5>
+              <div class="purchases-table-scroll">
               <table class="purchases-table">
                 <thead>
                   <tr>
@@ -434,6 +537,7 @@
                   </tr>
                 </tbody>
               </table>
+              </div>
             </div>
 
             <div v-else class="no-purchases">
@@ -467,6 +571,7 @@ const showEditModal = ref(false)
 const showActionModal = ref(false)
 const showPurchaseHistoryModal = ref(false)
 const showChart = ref(false)
+const showSoldHistory = ref(true)
 const searchQuery = ref('')
 const searchResults = ref([])
 const selectedStock = ref(null)
@@ -481,6 +586,8 @@ const selectedRange = ref('1M')
 const timeRanges = ['1D', '1W', '1M', '3M', '6M', '1Y', 'ALL']
 const priceOption = ref('manual')
 const loadingHistoricalPrice = ref(false)
+const sellPriceOption = ref('manual')
+const loadingHistoricalSalePrice = ref(false)
 const stockForm = ref({
   symbol: '',
   quantity: 0,
@@ -490,7 +597,8 @@ const stockForm = ref({
 })
 const sellForm = ref({
   salePrice: 0,
-  saleDate: new Date().toISOString().slice(0, 16)
+  saleDate: new Date().toISOString().slice(0, 16),
+  quantity: 0
 })
 const editForm = ref({
   name: '',
@@ -526,7 +634,7 @@ function getSortValue(stock, field) {
 }
 
 const stocks = computed(() => {
-  const raw = portfolioStore.currentPortfolio?.stocks ?? []
+  const raw = (portfolioStore.currentPortfolio?.stocks ?? []).filter(s => !s.saleDate)
   return [...raw].sort((a, b) => {
     const aVal = getSortValue(a, sortField.value)
     const bVal = getSortValue(b, sortField.value)
@@ -538,6 +646,11 @@ const stocks = computed(() => {
     }
     return sortDirection.value === 'asc' ? cmp : -cmp
   })
+})
+
+const soldStocks = computed(() => {
+  const raw = (portfolioStore.currentPortfolio?.stocks ?? []).filter(s => !!s.saleDate)
+  return [...raw].sort((a, b) => new Date(b.saleDate) - new Date(a.saleDate))
 })
 
 onMounted(() => {
@@ -654,6 +767,58 @@ async function fetchHistoricalPrice() {
   }
 }
 
+function openBuyFromHistory() {
+  const stock = selectedStockForHistory.value.stock
+  selectedStock.value = stock
+  stockForm.value.symbol = stock.symbol
+  stockForm.value.purchasePrice = stock.currentPrice || 0
+  searchQuery.value = `${stock.symbol} - ${stock.name}`
+  priceOption.value = 'manual'
+  closePurchaseHistoryModal()
+  showAddStockModal.value = true
+}
+
+function openSellFromHistory() {
+  selectedStockToSell.value = selectedStockForHistory.value
+  sellForm.value.salePrice = selectedStockForHistory.value.currentPrice || 0
+  sellForm.value.quantity = selectedStockForHistory.value.quantity || 0
+  sellPriceOption.value = 'manual'
+  closePurchaseHistoryModal()
+  showSellStockModal.value = true
+}
+
+function onSalePriceOptionChange() {
+  if (sellPriceOption.value === 'date' && selectedStockToSell.value) {
+    fetchHistoricalSalePrice()
+  } else if (sellPriceOption.value === 'manual' && selectedStockToSell.value) {
+    sellForm.value.salePrice = selectedStockToSell.value.currentPrice || 0
+  }
+}
+
+async function onSaleDateChange() {
+  if (sellPriceOption.value === 'date' && selectedStockToSell.value) {
+    await fetchHistoricalSalePrice()
+  }
+}
+
+async function fetchHistoricalSalePrice() {
+  if (!selectedStockToSell.value || !sellForm.value.saleDate) return
+
+  loadingHistoricalSalePrice.value = true
+  try {
+    const date = new Date(sellForm.value.saleDate).toISOString()
+    const response = await api.get(`/stocks/info/${selectedStockToSell.value.stock.symbol}/historical-price`, {
+      params: { date }
+    })
+    sellForm.value.salePrice = response.data.price || 0
+  } catch (error) {
+    console.error('Failed to fetch historical sale price:', error)
+    sellForm.value.salePrice = selectedStockToSell.value.currentPrice || 0
+  } finally {
+    loadingHistoricalSalePrice.value = false
+  }
+}
+
 async function addStock() {
   if (!selectedStock.value) return
   
@@ -701,6 +866,8 @@ async function confirmDelete() {
 function openSellModal() {
   selectedStockToSell.value = selectedStockForAction.value
   sellForm.value.salePrice = selectedStockForAction.value.currentPrice || 0
+  sellForm.value.quantity = selectedStockForAction.value.quantity || 0
+  sellPriceOption.value = 'manual'
   closeActionModal()
   showSellStockModal.value = true
 }
@@ -713,11 +880,12 @@ async function removeStockConfirm(stock) {
 
 async function sellStock() {
   if (!selectedStockToSell.value) return
-  
+
   try {
     await api.put(`/portfolios/stocks/${selectedStockToSell.value.id}/sell`, {
       salePrice: sellForm.value.salePrice,
-      saleDate: new Date(sellForm.value.saleDate).toISOString()
+      saleDate: new Date(sellForm.value.saleDate).toISOString(),
+      quantity: sellForm.value.quantity
     })
     await portfolioStore.fetchPortfolioById(route.params.id)
     await fetchPerformance()
@@ -730,9 +898,12 @@ async function sellStock() {
 function closeSellStockModal() {
   showSellStockModal.value = false
   selectedStockToSell.value = null
+  sellPriceOption.value = 'manual'
+  loadingHistoricalSalePrice.value = false
   sellForm.value = {
     salePrice: 0,
-    saleDate: new Date().toISOString().slice(0, 16)
+    saleDate: new Date().toISOString().slice(0, 16),
+    quantity: 0
   }
 }
 
@@ -977,31 +1148,81 @@ h1 {
   background: white;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow-x: auto;
+  margin-bottom: 2rem;
+}
+
+.sold-history-section {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
   overflow: hidden;
+}
+
+.sold-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  cursor: pointer;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e0e0e0;
+  transition: background 0.2s;
+}
+
+.sold-history-header:hover {
+  background: #f0f3ff;
+}
+
+.sold-history-header h3 {
+  margin: 0;
+  color: #555;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.sold-history-header .expand-icon {
+  color: #667eea;
+  font-size: 0.85rem;
+}
+
+.sold-history-table {
+  overflow-x: auto;
+}
+
+.sold-history-table table {
+  min-width: 850px;
 }
 
 table {
   width: 100%;
+  min-width: 900px;
   border-collapse: collapse;
 }
 
 th {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 1rem;
+  background: #f8f9fc;
+  color: #4a5568;
+  padding: 0.75rem 1rem;
   text-align: left;
   font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  border-bottom: 2px solid #667eea;
 }
 
 th.sortable {
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
-  transition: background 0.2s;
+  transition: background 0.15s, color 0.15s;
 }
 
 th.sortable:hover {
-  background: linear-gradient(135deg, #5a6fd6 0%, #6a3f92 100%);
+  background: #eef0fc;
+  color: #667eea;
 }
 
 .sort-icon {
@@ -1393,6 +1614,54 @@ input:disabled {
   gap: 1.5rem;
 }
 
+.purchase-history-header {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.purchase-history-header .stock-summary {
+  flex: 1;
+}
+
+.history-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  flex-shrink: 0;
+  padding-top: 0.25rem;
+}
+
+.history-actions .btn-primary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  font-size: 0.9rem;
+}
+
+.btn-sell-history {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  color: #2563eb;
+  border: 2px solid #93c5fd;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-sell-history:hover {
+  background: linear-gradient(135deg, #bfdbfe 0%, #93c5fd 100%);
+  border-color: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
 .stock-summary {
   background: #f0f9ff;
   padding: 1.5rem;
@@ -1442,27 +1711,32 @@ input:disabled {
   font-size: 1.1rem;
 }
 
-.purchases-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: white;
+.purchases-table-scroll {
+  overflow-x: auto;
   border-radius: 8px;
-  overflow: hidden;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
+.purchases-table {
+  width: 100%;
+  min-width: 650px;
+  border-collapse: collapse;
+  background: white;
+}
+
 .purchases-table thead {
-  background: #667eea;
-  color: white;
+  background: #f8f9fc;
 }
 
 .purchases-table th {
   padding: 0.875rem;
   text-align: left;
   font-weight: 600;
-  font-size: 0.9rem;
-  background: #667eea;
-  color: white;
+  font-size: 0.75rem;
+  color: #4a5568;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid #667eea;
 }
 
 .purchases-table td {

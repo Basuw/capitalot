@@ -569,30 +569,36 @@ input[type="text"]:focus {
   background: white;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
+  overflow-x: auto;
 }
 
 .stocks-table {
   width: 100%;
+  min-width: 750px;
   border-collapse: collapse;
 }
 
 .stocks-table thead {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: #f8f9fc;
 }
 
 .stocks-table th {
-  padding: 1rem;
+  padding: 0.75rem 1rem;
   text-align: left;
   font-weight: 600;
+  font-size: 0.8rem;
+  color: #4a5568;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  border-bottom: 2px solid #667eea;
   cursor: pointer;
   user-select: none;
-  transition: background 0.3s;
+  transition: background 0.15s, color 0.15s;
 }
 
 .stocks-table th.sortable:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: #eef0fc;
+  color: #667eea;
 }
 
 .stocks-table th.right-align {

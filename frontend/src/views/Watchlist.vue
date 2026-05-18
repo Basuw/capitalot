@@ -993,34 +993,36 @@ h1 {
   background: white;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
+  overflow-x: auto;
 }
 
 table {
   width: 100%;
+  min-width: 950px;
   border-collapse: collapse;
 }
 
 th {
-  background: #667eea;
-  color: white;
-  padding: 0.875rem 1rem;
+  background: #f8f9fc;
+  color: #4a5568;
+  padding: 0.75rem 1rem;
   text-align: left;
   font-weight: 600;
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border-bottom: 2px solid #e0e0e0;
+  letter-spacing: 0.6px;
+  border-bottom: 2px solid #667eea;
 }
 
 th.sortable {
   cursor: pointer;
   user-select: none;
-  transition: background 0.2s;
+  transition: background 0.15s, color 0.15s;
 }
 
 th.sortable:hover {
-  background: #5568d3;
+  background: #eef0fc;
+  color: #667eea;
 }
 
 .sort-indicator {

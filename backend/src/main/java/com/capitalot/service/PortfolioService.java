@@ -70,21 +70,24 @@ public class PortfolioService {
         
         // Enrich each stock with current prices
         for (PortfolioStock ps : portfolio.getStocks()) {
-            if (ps.getSaleDate() == null) {  // Only for stocks not yet sold
+            if (ps.getSaleDate() == null) {
                 StockPriceResponse priceResponse = stockPriceService.getStockPrice(ps.getStock().getSymbol());
-                
-                // Set current price
                 ps.setCurrentPrice(priceResponse.getCurrentPrice().doubleValue());
-                
-                // Calculate current value
                 double currentValue = ps.getQuantity().doubleValue() * priceResponse.getCurrentPrice().doubleValue();
                 ps.setCurrentValue(currentValue);
-                
-                // Calculate gain/loss based on PURCHASE price
                 double purchaseValue = ps.getQuantity().doubleValue() * ps.getPurchasePrice().doubleValue();
                 double gainLoss = currentValue - purchaseValue;
                 ps.setGainLoss(gainLoss);
-                ps.setGainLossPercentage((gainLoss / purchaseValue) * 100.0);
+                ps.setGainLossPercentage(purchaseValue > 0 ? (gainLoss / purchaseValue) * 100.0 : 0.0);
+            } else if (ps.getSalePrice() != null && ps.getPurchasePrice() != null && ps.getQuantity() != null) {
+                // Sold stock: compute realized gain/loss from sale price
+                double saleValue = ps.getQuantity().doubleValue() * ps.getSalePrice().doubleValue();
+                double purchaseValue = ps.getQuantity().doubleValue() * ps.getPurchasePrice().doubleValue();
+                double gainLoss = saleValue - purchaseValue;
+                ps.setCurrentPrice(ps.getSalePrice().doubleValue());
+                ps.setCurrentValue(saleValue);
+                ps.setGainLoss(gainLoss);
+                ps.setGainLossPercentage(purchaseValue > 0 ? (gainLoss / purchaseValue) * 100.0 : 0.0);
             }
         }
         
@@ -184,10 +187,30 @@ public class PortfolioService {
             throw new RuntimeException("Unauthorized access to portfolio stock");
         }
         
-        portfolioStock.setSalePrice(request.getSalePrice());
-        portfolioStock.setSaleDate(request.getSaleDate());
-        
-        return portfolioStockRepository.save(portfolioStock);
+        BigDecimal sellQty = request.getQuantity() != null ? request.getQuantity() : portfolioStock.getQuantity();
+
+        if (sellQty.compareTo(portfolioStock.getQuantity()) >= 0) {
+            // Full sell
+            portfolioStock.setSalePrice(request.getSalePrice());
+            portfolioStock.setSaleDate(request.getSaleDate());
+            return portfolioStockRepository.save(portfolioStock);
+        } else {
+            // Partial sell: create a separate "sold" record for the sold portion
+            PortfolioStock soldPart = PortfolioStock.builder()
+                .portfolio(portfolioStock.getPortfolio())
+                .stock(portfolioStock.getStock())
+                .quantity(sellQty)
+                .purchasePrice(portfolioStock.getPurchasePrice())
+                .purchaseDate(portfolioStock.getPurchaseDate())
+                .salePrice(request.getSalePrice())
+                .saleDate(request.getSaleDate())
+                .build();
+            portfolioStockRepository.save(soldPart);
+
+            // Reduce remaining quantity
+            portfolioStock.setQuantity(portfolioStock.getQuantity().subtract(sellQty));
+            return portfolioStockRepository.save(portfolioStock);
+        }
     }
     
     public PerformanceStats getPortfolioPerformance(Long portfolioId, String range, String email) {
