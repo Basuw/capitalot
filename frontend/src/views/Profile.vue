@@ -174,17 +174,27 @@
       <div class="preferences-section export-section">
         <h2>📥 Export des données</h2>
         <p class="section-description">
-          Téléchargez tous vos portfolios et actions au format CSV, compatible Excel et Google Sheets.
+          Téléchargez vos portfolios au format CSV. Choisissez les colonnes à inclure.
         </p>
-        <div class="export-row">
-          <div class="export-info">
-            <div class="export-icon">📊</div>
-            <div>
-              <h3>Export complet des portfolios</h3>
-              <p>Génère un fichier CSV avec chaque portfolio, chaque action, les quantités, prix d'achat, valeur actuelle et gain/perte.</p>
-            </div>
-          </div>
-          <button @click="exportCSV" :disabled="exporting" class="btn-export">
+
+        <div class="export-columns-grid">
+          <label
+            v-for="col in exportColumns"
+            :key="col.key"
+            class="export-col-toggle"
+            :class="{ active: col.selected }"
+          >
+            <input type="checkbox" v-model="col.selected" />
+            <span class="col-check">
+              <svg v-if="col.selected" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </span>
+            <span class="col-label">{{ col.label }}</span>
+          </label>
+        </div>
+
+        <div class="export-footer">
+          <span class="export-count">{{ exportColumns.filter(c => c.selected).length }} colonne(s) sélectionnée(s)</span>
+          <button @click="exportCSV" :disabled="exporting || exportColumns.every(c => !c.selected)" class="btn-export">
             <svg v-if="!exporting" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
@@ -213,55 +223,59 @@ const portfolioStore = usePortfolioStore()
 const exporting = ref(false)
 const exportError = ref('')
 
+const exportColumns = ref([
+  { key: 'portfolio',          label: 'Portfolio',         selected: true },
+  { key: 'symbol',             label: 'Symbole',           selected: true },
+  { key: 'name',               label: 'Nom',               selected: true },
+  { key: 'type',               label: 'Type',              selected: false },
+  { key: 'quantity',           label: 'Quantité',          selected: true },
+  { key: 'purchasePrice',      label: 'Prix moyen achat',  selected: true },
+  { key: 'currentPrice',       label: 'Prix actuel',       selected: false },
+  { key: 'currentValue',       label: 'Valeur totale',     selected: true },
+  { key: 'gainLoss',           label: 'Gain/Perte',        selected: true },
+  { key: 'gainLossPercentage', label: 'Gain/Perte (%)',    selected: true },
+  { key: 'currency',           label: 'Devise',            selected: false },
+])
+
+function getStockValue(key, s, portfolioName, currency) {
+  switch (key) {
+    case 'portfolio':          return escapeCsv(portfolioName)
+    case 'symbol':             return escapeCsv(s.stock?.symbol ?? '')
+    case 'name':               return escapeCsv(s.stock?.name ?? '')
+    case 'type':               return escapeCsv(s.stock?.type ?? '')
+    case 'quantity':           return formatNum(s.quantity)
+    case 'purchasePrice':      return formatNum(s.purchasePrice)
+    case 'currentPrice':       return formatNum(s.currentPrice)
+    case 'currentValue':       return formatNum(s.currentValue)
+    case 'gainLoss':           return formatNum(s.gainLoss)
+    case 'gainLossPercentage': return formatNum(s.gainLossPercentage)
+    case 'currency':           return currency
+    default:                   return ''
+  }
+}
+
 async function exportCSV() {
   exporting.value = true
   exportError.value = ''
   try {
-    // Récupère la liste des portfolios
     const portfolios = await portfolioStore.fetchPortfolios()
-
-    // Récupère chaque portfolio avec ses actions
     const detailed = await Promise.all(
       portfolios.map(p => api.get(`/portfolios/${p.id}`).then(r => r.data))
     )
 
     const currency = preferencesStore.preferences?.currency || 'USD'
     const now = new Date().toLocaleString('fr-FR')
-
-    const headers = [
-      'Portfolio',
-      'Symbole',
-      'Nom',
-      'Type',
-      'Quantité',
-      'Prix moyen achat',
-      'Prix actuel',
-      'Valeur totale',
-      'Gain/Perte',
-      'Gain/Perte (%)',
-      `Devise`
-    ]
+    const active = exportColumns.value.filter(c => c.selected)
+    const headers = active.map(c => c.label)
 
     const rows = []
     for (const portfolio of detailed) {
       const stocks = portfolio.stocks || []
       if (stocks.length === 0) {
-        rows.push([escapeCsv(portfolio.name), '', '', '', '', '', '', '', '', '', currency])
+        rows.push(active.map(col => col.key === 'portfolio' ? escapeCsv(portfolio.name) : ''))
       } else {
         for (const s of stocks) {
-          rows.push([
-            escapeCsv(portfolio.name),
-            escapeCsv(s.stock?.symbol ?? ''),
-            escapeCsv(s.stock?.name ?? ''),
-            escapeCsv(s.stock?.type ?? ''),
-            formatNum(s.quantity),
-            formatNum(s.purchasePrice),
-            formatNum(s.currentPrice),
-            formatNum(s.currentValue),
-            formatNum(s.gainLoss),
-            formatNum(s.gainLossPercentage),
-            currency
-          ])
+          rows.push(active.map(col => getStockValue(col.key, s, portfolio.name, currency)))
         }
       }
     }
@@ -545,42 +559,73 @@ input:checked + .slider:before {
   margin-top: 2rem;
 }
 
-.export-row {
+.export-columns-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 1.5rem;
+}
+
+.export-col-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  border-radius: 20px;
+  border: 2px solid #e0e0e0;
+  background: #f8f9fa;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #666;
+  transition: all 0.15s;
+  user-select: none;
+}
+
+.export-col-toggle input {
+  display: none;
+}
+
+.export-col-toggle:hover {
+  border-color: #667eea;
+  color: #667eea;
+}
+
+.export-col-toggle.active {
+  background: #eef0fc;
+  border-color: #667eea;
+  color: #667eea;
+}
+
+.col-check {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 2px solid #d0d0d0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.export-col-toggle.active .col-check {
+  background: #667eea;
+  border-color: #667eea;
+  color: white;
+}
+
+.export-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 2rem;
-  padding: 1.5rem;
-  background: #f8f9fa;
-  border-radius: 12px;
-  border: 2px solid #e0e0e0;
+  gap: 1rem;
   flex-wrap: wrap;
 }
 
-.export-info {
-  display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-  flex: 1;
-  min-width: 0;
-}
-
-.export-icon {
-  font-size: 2rem;
-  flex-shrink: 0;
-}
-
-.export-info h3 {
-  margin: 0 0 0.4rem 0;
-  font-size: 1rem;
-  color: #333;
-}
-
-.export-info p {
-  margin: 0;
+.export-count {
   font-size: 0.875rem;
-  color: #666;
-  line-height: 1.4;
+  color: #888;
 }
 
 .btn-export {
