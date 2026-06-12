@@ -17,11 +17,21 @@
       <div class="header-section">
         <div class="header-top">
           <button @click="goBack" class="back-btn">← Retour</button>
-          <button @click="refreshData" class="refresh-btn-detail" :disabled="refreshing">
-            <svg v-if="!refreshing" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
-            <svg v-else class="spinner" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>
-            Rafraîchir
-          </button>
+          <div class="header-actions">
+            <button @click="openAddToWatchlistModal" class="btn-action watchlist-btn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              Watchlist
+            </button>
+            <button @click="openAddToPortfolioModal" class="btn-action portfolio-btn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              Portfolio
+            </button>
+            <button @click="refreshData" class="refresh-btn-detail" :disabled="refreshing">
+              <svg v-if="!refreshing" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+              <svg v-else class="spinner" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>
+              Rafraîchir
+            </button>
+          </div>
         </div>
         <div class="header-main-title">
           <div class="stock-logo-container">
@@ -367,6 +377,105 @@
       <div v-else-if="stockInfo" class="news-placeholder">
         Aucune actualité récente pour cette action.
       </div>
+
+      <!-- Modal : Ajouter à une watchlist -->
+      <Modal :show="showAddToWatchlistModal" title="Ajouter à une watchlist" @close="showAddToWatchlistModal = false">
+        <form @submit.prevent="addToWatchlist">
+          <div class="stock-preview-info">
+            <strong>{{ stockInfo?.name }}</strong>
+            <span class="preview-symbol">{{ symbol }}</span>
+          </div>
+          <div class="form-group">
+            <label>Watchlist</label>
+            <select v-model="watchlistForm.watchlistId" required>
+              <option value="" disabled>Choisir une watchlist...</option>
+              <option v-for="wl in watchlistStore.watchlists" :key="wl.id" :value="wl.id">
+                {{ wl.icon || '👁️' }} {{ wl.name }}
+              </option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Prix cible</label>
+            <input type="number" v-model.number="watchlistForm.targetPrice" step="0.01" min="0" placeholder="0.00" />
+          </div>
+          <div class="form-group">
+            <label>Priorité</label>
+            <select v-model="watchlistForm.priority">
+              <option value="LOW">Faible</option>
+              <option value="MEDIUM">Moyenne</option>
+              <option value="HIGH">Haute</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Notes (optionnel)</label>
+            <textarea v-model="watchlistForm.notes" rows="2" placeholder="Notes..."></textarea>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn-secondary" @click="showAddToWatchlistModal = false">Annuler</button>
+            <button type="submit" class="btn-primary" :disabled="!watchlistForm.watchlistId || addingToWatchlist">
+              {{ addingToWatchlist ? 'Ajout...' : 'Ajouter à la watchlist' }}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <!-- Modal : Ajouter au portfolio -->
+      <Modal :show="showAddToPortfolioModal" title="Ajouter au portfolio" @close="showAddToPortfolioModal = false">
+        <form @submit.prevent="addToPortfolio">
+          <div class="stock-preview-info">
+            <strong>{{ stockInfo?.name }}</strong>
+            <span class="preview-symbol">{{ symbol }}</span>
+          </div>
+          <div class="form-group">
+            <label>Portfolio</label>
+            <select v-model="portfolioForm.portfolioId" required>
+              <option value="" disabled>Choisir un portfolio...</option>
+              <option v-for="p in portfolioStore.portfolios" :key="p.id" :value="p.id">
+                {{ p.icon || '💼' }} {{ p.name }}
+              </option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Quantité</label>
+            <input type="number" v-model.number="portfolioForm.quantity" min="0.000001" step="any" required />
+          </div>
+          <div class="form-group">
+            <label>Date d'achat</label>
+            <input type="datetime-local" v-model="portfolioForm.purchaseDate" @change="onPortfolioDateChange" />
+          </div>
+          <div class="form-group">
+            <label>Prix d'achat</label>
+            <div class="price-options">
+              <label class="radio-option">
+                <input type="radio" v-model="portfolioForm.priceOption" value="manual" @change="onPortfolioPriceOptionChange" />
+                Manuel
+              </label>
+              <label class="radio-option">
+                <input type="radio" v-model="portfolioForm.priceOption" value="date" @change="onPortfolioPriceOptionChange" />
+                Fetch par date
+              </label>
+            </div>
+            <input
+              type="number"
+              v-model.number="portfolioForm.purchasePrice"
+              min="0"
+              step="0.01"
+              :disabled="portfolioForm.priceOption === 'date'"
+              :class="{ 'loading-price': loadingPortfolioPrice }"
+            />
+            <small v-if="portfolioForm.priceOption === 'date'" class="helper-text">
+              Le prix sera récupéré automatiquement pour la date sélectionnée
+            </small>
+            <small v-if="loadingPortfolioPrice" class="helper-text loading">Récupération du prix historique...</small>
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn-secondary" @click="showAddToPortfolioModal = false">Annuler</button>
+            <button type="submit" class="btn-primary" :disabled="!portfolioForm.portfolioId || addingToPortfolio">
+              {{ addingToPortfolio ? 'Ajout...' : 'Ajouter au portfolio' }}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   </div>
 </template>
@@ -376,12 +485,17 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
 import PerformanceChart from '../components/PerformanceChart.vue'
+import Modal from '../components/Modal.vue'
 import { usePreferencesStore } from '../stores/preferences'
+import { usePortfolioStore } from '../stores/portfolio'
+import { useWatchlistStore } from '../stores/watchlist'
 
 const route = useRoute()
 const router = useRouter()
 const symbol = route.params.symbol
 const preferencesStore = usePreferencesStore()
+const portfolioStore = usePortfolioStore()
+const watchlistStore = useWatchlistStore()
 
 const stockInfo = ref(null)
 const priceHistory = ref([])
@@ -392,6 +506,23 @@ const selectedPeriod = ref('1M')
 const showHistory = ref(false)
 const logoImg = ref(null)
 const logoFallbackUsed = ref(false)
+
+// --- Add to Watchlist ---
+const showAddToWatchlistModal = ref(false)
+const addingToWatchlist = ref(false)
+const watchlistForm = ref({ watchlistId: '', targetPrice: null, priority: 'MEDIUM', notes: '' })
+
+// --- Add to Portfolio ---
+const showAddToPortfolioModal = ref(false)
+const addingToPortfolio = ref(false)
+const loadingPortfolioPrice = ref(false)
+const portfolioForm = ref({
+  portfolioId: '',
+  quantity: 1,
+  purchasePrice: 0,
+  purchaseDate: new Date().toISOString().slice(0, 16),
+  priceOption: 'manual'
+})
 
 // Logo : CDN statique Finnhub en priorité, puis logoUrl du backend
 const logoSrc = computed(() => {
@@ -511,6 +642,90 @@ async function refreshData() {
   }
 }
 
+// --- Watchlist actions ---
+function openAddToWatchlistModal() {
+  watchlistForm.value.targetPrice = stockInfo.value?.currentPrice || null
+  watchlistForm.value.watchlistId = ''
+  watchlistForm.value.priority = 'MEDIUM'
+  watchlistForm.value.notes = ''
+  showAddToWatchlistModal.value = true
+}
+
+async function addToWatchlist() {
+  if (!watchlistForm.value.watchlistId) return
+  addingToWatchlist.value = true
+  try {
+    await watchlistStore.addToWatchlist(watchlistForm.value.watchlistId, {
+      symbol: symbol,
+      targetPrice: watchlistForm.value.targetPrice,
+      priority: watchlistForm.value.priority,
+      notes: watchlistForm.value.notes
+    })
+    showAddToWatchlistModal.value = false
+  } catch (e) {
+    console.error('Failed to add to watchlist:', e)
+  } finally {
+    addingToWatchlist.value = false
+  }
+}
+
+// --- Portfolio actions ---
+function openAddToPortfolioModal() {
+  portfolioForm.value.portfolioId = ''
+  portfolioForm.value.quantity = 1
+  portfolioForm.value.purchasePrice = stockInfo.value?.currentPrice || 0
+  portfolioForm.value.purchaseDate = new Date().toISOString().slice(0, 16)
+  portfolioForm.value.priceOption = 'manual'
+  showAddToPortfolioModal.value = true
+}
+
+function onPortfolioPriceOptionChange() {
+  if (portfolioForm.value.priceOption === 'date') {
+    fetchPortfolioHistoricalPrice()
+  } else {
+    portfolioForm.value.purchasePrice = stockInfo.value?.currentPrice || 0
+  }
+}
+
+async function onPortfolioDateChange() {
+  if (portfolioForm.value.priceOption === 'date') {
+    await fetchPortfolioHistoricalPrice()
+  }
+}
+
+async function fetchPortfolioHistoricalPrice() {
+  if (!portfolioForm.value.purchaseDate) return
+  loadingPortfolioPrice.value = true
+  try {
+    const date = new Date(portfolioForm.value.purchaseDate).toISOString()
+    const response = await api.get(`/stocks/info/${encodeURIComponent(symbol)}/historical-price`, { params: { date } })
+    portfolioForm.value.purchasePrice = response.data.price || 0
+  } catch (e) {
+    portfolioForm.value.purchasePrice = stockInfo.value?.currentPrice || 0
+  } finally {
+    loadingPortfolioPrice.value = false
+  }
+}
+
+async function addToPortfolio() {
+  if (!portfolioForm.value.portfolioId) return
+  addingToPortfolio.value = true
+  try {
+    await api.post(`/purchases/portfolio/${portfolioForm.value.portfolioId}`, {
+      symbol: symbol,
+      quantity: portfolioForm.value.quantity,
+      purchasePrice: portfolioForm.value.priceOption === 'manual' ? portfolioForm.value.purchasePrice : null,
+      purchaseDate: new Date(portfolioForm.value.purchaseDate).toISOString(),
+      useMarketPrice: portfolioForm.value.priceOption === 'date'
+    })
+    showAddToPortfolioModal.value = false
+  } catch (e) {
+    console.error('Failed to add to portfolio:', e)
+  } finally {
+    addingToPortfolio.value = false
+  }
+}
+
 watch(selectedPeriod, () => {
   loadStockData()
 })
@@ -524,9 +739,13 @@ onMounted(async () => {
   } catch (err) {
     console.warn('Could not load preferences, using defaults:', err)
   }
-  
-  // Charger les données du stock
-  await loadStockData()
+
+  // Charger les données du stock + portfolios/watchlists en parallèle
+  await Promise.all([
+    loadStockData(),
+    portfolioStore.fetchPortfolios(),
+    watchlistStore.fetchWatchlists()
+  ])
 })
 </script>
 
@@ -1309,5 +1528,157 @@ onMounted(async () => {
 
 .chevron.open {
   transform: rotate(180deg);
+}
+
+/* === Header action buttons === */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.btn-action {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.watchlist-btn {
+  background: #f0f4ff;
+  color: #667eea;
+  border: 1px solid #c7d2fe;
+}
+
+.watchlist-btn:hover {
+  background: #e0e7ff;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(102, 126, 234, 0.2);
+}
+
+.portfolio-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.portfolio-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+/* === Modal form styles === */
+.stock-preview-info {
+  background: #f8f9fc;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.25rem;
+  font-size: 0.95rem;
+  border-left: 3px solid #667eea;
+  color: #1e1e2e;
+}
+
+.preview-symbol {
+  color: #667eea;
+  font-weight: 700;
+  margin-left: 0.4rem;
+}
+
+.form-group {
+  margin-bottom: 1.25rem;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.4rem;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+  font-family: inherit;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  border-color: #667eea;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-group input:disabled {
+  background: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.price-options {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+}
+
+.radio-option input[type="radio"] {
+  width: auto;
+  accent-color: #667eea;
+  cursor: pointer;
+}
+
+.helper-text {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-top: 0.3rem;
+  display: block;
+}
+
+.helper-text.loading {
+  color: #667eea;
+}
+
+.loading-price {
+  background: #f8f9fc !important;
+  animation: pulse-input 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-input {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #f3f4f6;
 }
 </style>

@@ -230,6 +230,7 @@ const exportColumns = ref([
   { key: 'type',               label: 'Type',              selected: false },
   { key: 'quantity',           label: 'Quantité',          selected: true },
   { key: 'purchasePrice',      label: 'Prix moyen achat',  selected: true },
+  { key: 'purchaseDate',       label: "Date d'achat",      selected: false },
   { key: 'currentPrice',       label: 'Prix actuel',       selected: false },
   { key: 'currentValue',       label: 'Valeur totale',     selected: true },
   { key: 'gainLoss',           label: 'Gain/Perte',        selected: true },
@@ -245,6 +246,7 @@ function getStockValue(key, s, portfolioName, currency) {
     case 'type':               return escapeCsv(s.stock?.type ?? '')
     case 'quantity':           return formatNum(s.quantity)
     case 'purchasePrice':      return formatNum(s.purchasePrice)
+    case 'purchaseDate':       return s.purchaseDate ? new Date(s.purchaseDate).toLocaleDateString('fr-FR') : ''
     case 'currentPrice':       return formatNum(s.currentPrice)
     case 'currentValue':       return formatNum(s.currentValue)
     case 'gainLoss':           return formatNum(s.gainLoss)

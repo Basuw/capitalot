@@ -597,12 +597,12 @@ async function saveEdit(item) {
     for (const [watchlistId, items] of Object.entries(watchlistItems.value)) {
       const itemIndex = items.findIndex(i => i.id === item.id)
       if (itemIndex !== -1) {
-        await watchlistStore.fetchWatchlistItems(parseInt(watchlistId))
+        await watchlistStore.fetchWatchlistItems(parseInt(watchlistId), true)
         watchlistItems.value[watchlistId] = watchlistStore.watchlist
         break
       }
     }
-    
+
     cancelEdit()
   } catch (error) {
     console.error('Failed to update item:', error)
@@ -611,17 +611,17 @@ async function saveEdit(item) {
 
 async function saveTagsEdit(item) {
   if (!editingCell.value || editingCell.value.field !== 'tags') return
-  
+
   await new Promise(resolve => setTimeout(resolve, 200))
-  
+
   try {
     const tags = editTags.value.map(t => t.name)
     await watchlistStore.updateWatchlistItem(item.id, { tags })
-    
+
     for (const [watchlistId, items] of Object.entries(watchlistItems.value)) {
       const itemIndex = items.findIndex(i => i.id === item.id)
       if (itemIndex !== -1) {
-        await watchlistStore.fetchWatchlistItems(parseInt(watchlistId))
+        await watchlistStore.fetchWatchlistItems(parseInt(watchlistId), true)
         watchlistItems.value[watchlistId] = watchlistStore.watchlist
         break
       }
@@ -676,7 +676,7 @@ async function saveItem() {
       })
       
       if (expandedWatchlists.value[currentWatchlistId.value]) {
-        await watchlistStore.fetchWatchlistItems(currentWatchlistId.value)
+        await watchlistStore.fetchWatchlistItems(currentWatchlistId.value, true)
         watchlistItems.value[currentWatchlistId.value] = watchlistStore.watchlist
       }
     }
@@ -731,7 +731,7 @@ async function removeItemConfirm(id, watchlistId) {
       await watchlistStore.removeFromWatchlist(id)
       
       if (expandedWatchlists.value[watchlistId]) {
-        await watchlistStore.fetchWatchlistItems(watchlistId)
+        await watchlistStore.fetchWatchlistItems(watchlistId, true)
         watchlistItems.value[watchlistId] = watchlistStore.watchlist
       }
     } catch (error) {

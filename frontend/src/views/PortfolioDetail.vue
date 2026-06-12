@@ -607,8 +607,8 @@ const editForm = ref({
   link: ''
 })
 
-const sortField = ref('symbol')
-const sortDirection = ref('asc')
+const sortField = ref('currentValue')
+const sortDirection = ref('desc')
 
 function sortBy(field) {
   if (sortField.value === field) {
@@ -831,7 +831,7 @@ async function addStock() {
       useMarketPrice: priceOption.value === 'date'
     })
     closeAddStockModal()
-    await portfolioStore.fetchPortfolioById(route.params.id)
+    await portfolioStore.fetchPortfolioById(route.params.id, true)
     await fetchPerformance()
   } catch (error) {
     console.error('Failed to add stock:', error)
@@ -854,7 +854,7 @@ async function confirmDelete() {
   if (confirm('Are you sure you want to delete this stock? This action cannot be undone.')) {
     try {
       await api.delete(`/portfolios/stocks/${selectedStockForAction.value.id}`)
-      await portfolioStore.fetchPortfolioById(route.params.id)
+      await portfolioStore.fetchPortfolioById(route.params.id, true)
       await fetchPerformance()
       closeActionModal()
     } catch (error) {
@@ -887,7 +887,7 @@ async function sellStock() {
       saleDate: new Date(sellForm.value.saleDate).toISOString(),
       quantity: sellForm.value.quantity
     })
-    await portfolioStore.fetchPortfolioById(route.params.id)
+    await portfolioStore.fetchPortfolioById(route.params.id, true)
     await fetchPerformance()
     closeSellStockModal()
   } catch (error) {
@@ -970,7 +970,7 @@ async function deletePurchase(purchaseId) {
     // Refresh purchase history
     await fetchPurchaseHistory(selectedStockForHistory.value.id)
     // Refresh portfolio data
-    await portfolioStore.fetchPortfolioById(route.params.id)
+    await portfolioStore.fetchPortfolioById(route.params.id, true)
     await fetchPerformance()
     
     // Close modal if no more purchases
